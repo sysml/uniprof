@@ -57,7 +57,7 @@ int main(int argc, char **argv) {
 			if (iter != symbollist.begin())
 				iter--;
 			if (addr == iter->first)
-				std::cout << iter->second.c_str();
+				std::cout << iter->second.c_str() << std::endl;
 			else
 				std::cout << iter->second.c_str() << "+0x" << std::hex << addr - iter->first << std::endl;
 		}
