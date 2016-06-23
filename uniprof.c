@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <inttypes.h>
 #include <string.h>
+#include <time.h>
 #include "xenctrl.h"
 
 #ifdef DEBUG
@@ -133,6 +134,16 @@ int do_stack_trace(xc_interface *xc_handle, int domid, xc_dominfo_t *dominfo, in
 	return 0;
 }
 
+void write_file_header(FILE *f, int domid)
+{
+	char timestring[64];
+	struct timespec ts;
+	clock_gettime(CLOCK_REALTIME_COARSE, &ts);
+	strftime(timestring, 63, "%Y-%m-%d %H:%M:%S %Z (%z)", localtime(&ts.tv_sec));
+	fprintf(f, "#unikernel stack tracer\n#tracing domid %d on %s\n\n", domid, timestring);
+}
+
+
 int main(int argc, char **argv) {
 	int domid, ret;
 	xc_interface *xc_handle;
@@ -172,6 +183,8 @@ int main(int argc, char **argv) {
 		return 5;
 	}
 	DBG("wordsize is %d\n", wordsize);
+
+	write_file_header(stdout, domid);
 
 	ret = do_stack_trace(xc_handle, domid, &dominfo, wordsize);
 	if (ret) {
