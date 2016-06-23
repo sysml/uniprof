@@ -25,6 +25,9 @@ typedef struct mapped_page {
 	struct mapped_page *next;
 } mapped_page_t;
 
+static bool verbose = false;
+#define VERBOSE(args...) if (verbose) printf(args);
+
 /* since some versions of sys/time.h do not include the
  * timespecadd/sub function, here's a macro (adapted from
  * the macros in sys/time.h) to do the job. */
@@ -160,7 +163,7 @@ void *guest_to_host(xc_interface *xc_handle, int domid, int vcpu, guest_word_t g
 	new_item->base = base;
 	new_item->mfn = xc_translate_foreign_address(xc_handle, domid, vcpu, base);
 	new_item->buf = xc_map_foreign_range(xc_handle, domid, XC_PAGE_SIZE, PROT_READ, new_item->mfn);
-	DBG("mapping new page %#"PRIx64"->%p\n", new_item->base, new_item->buf);
+	VERBOSE("mapping new page %#"PRIx64"->%p\n", new_item->base, new_item->buf);
 	if (new_item->buf == NULL) {
 		fprintf(stderr, "failed to allocate memory mapping page.\n");
 		return NULL;
@@ -235,12 +238,14 @@ static void print_usage(char *name) {
 	printf("usage:\n");
 	printf("  %s [options] <outfile> <domid>\n\n", name);
 	printf("options:\n");
-	printf("  -F --frequency          frequency of traces (in per second, default 1)\n");
-	printf("  -T --time               how long to run the tracer (in seconds, default 1)\n");
-	printf("  -M --missed-deadlines   print a warning to STDERR whenever a deadline is\n");
+	printf("  -F --frequency          Frequency of traces (in per second, default 1)\n");
+	printf("  -T --time               How long to run the tracer (in seconds, default 1)\n");
+	printf("  -M --missed-deadlines   Print a warning to STDERR whenever a deadline is\n");
 	printf("                          missed. Note that this may exacerbate the problem,\n");
 	printf("                          or it may treacherously appear to improve it,\n");
 	printf("                          while it actually doesn't (due to timing quirks)\n");
+	printf("  -v --verbose            Show some more informational output.\n");
+	printf("  -h --help               Print this help message.\n");
 }
 
 int main(int argc, char **argv) {
@@ -252,12 +257,13 @@ int main(int argc, char **argv) {
 	const int measure_rounds = 100;
 	struct timespec gettime_overhead, minsleep, sleep;
 	struct timespec begin, end, ts;
-	static const char *sopts = "hF:T:M";
+	static const char *sopts = "hF:T:Mv";
 	static const struct option lopts[] = {
 		{"help",             no_argument,       NULL, 'h'},
 		{"frequency",        required_argument, NULL, 'F'},
 		{"time",             required_argument, NULL, 'T'},
 		{"missed-deadlines", no_argument,       NULL, 'M'},
+		{"verbose",          no_argument,       NULL, 'v'},
 		{0, 0, 0, 0}
 	};
 	char *exename;
@@ -281,6 +287,9 @@ int main(int argc, char **argv) {
 				break;
 			case 'M':
 				warn_missed_deadlines = true;
+				break;
+			case 'v':
+				verbose = true;
 				break;
 			case '?':
 				fprintf(stderr, "%s --help for usage\n", argv[0]);
