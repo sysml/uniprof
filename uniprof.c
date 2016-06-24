@@ -305,13 +305,13 @@ int main(int argc, char **argv) {
 		return -1;
 	}
 
-	domid = strtol(argv[0], NULL, 10);
+	domid = strtol(argv[1], NULL, 10);
 	if (domid == 0) {
-		fprintf(stderr, "invalid domid (unparseable domid string %s, or cannot trace dom0)\n", argv[0]);
+		fprintf(stderr, "invalid domid (unparseable domid string %s, or cannot trace dom0)\n", argv[1]);
 		return -2;
 	}
 
-	if ((strlen(argv[1]) == 1) && (!(strncmp(argv[1], "-", 1)))) {
+	if ((strlen(argv[0]) == 1) && (!(strncmp(argv[0], "-", 1)))) {
 		outfile = stdout;
 	}
 	else {
