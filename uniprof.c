@@ -8,12 +8,16 @@
 #include <errno.h>
 #include <getopt.h>
 #include "xenctrl.h"
+#include "binsearch.h"
 
+
+#ifndef DBG
 #ifdef DEBUG
 #define DBG(args...) printf(args)
 #else
 #define DBG(args...)
 #endif /* DEBUG */
+#endif /* DBG */
 
 // big enough for 32 bit and 64 bit
 typedef uint64_t guest_word_t;
@@ -176,7 +180,21 @@ void *guest_to_host(xc_interface *xc_handle, int domid, int vcpu, guest_word_t g
 	return new_item->buf + offset;
 }
 
-void walk_stack(xc_interface *xc_handle, int domid, int vcpu, int wordsize, FILE *file) {
+void resolve_and_print_symbol(void *symbol_table, guest_word_t address, FILE *file) {
+	element_t *ele;
+
+	ele = binsearch_find_not_above(symbol_table, address);
+	if (!ele)
+		fprintf(file, "%#"PRIx64"\n", address);
+	else {
+		if (address == ele->key)
+			fprintf(file, "%#"PRIx64"\n", address);
+		else
+			fprintf(file, "%s+%#"PRIx64"\n", ele->val.c, address - ele->key);
+	}
+}
+
+void walk_stack(xc_interface *xc_handle, int domid, int vcpu, int wordsize, FILE *file, void *symbol_table) {
 	int ret;
 	guest_word_t fp, retaddr;
 	void *hfp;
@@ -195,7 +213,10 @@ void walk_stack(xc_interface *xc_handle, int domid, int vcpu, int wordsize, FILE
 		hfp = guest_to_host(xc_handle, domid, vcpu, fp);
 		DBG("vcpu %d, fp = %#"PRIx64"->%p->%#"PRIx64", return addr = %#"PRIx64"\n",
 				vcpu, fp, hfp, *((uint64_t*)hfp), retaddr);
-		fprintf(file, "%#"PRIx64"\n", retaddr);
+		if (symbol_table)
+			resolve_and_print_symbol(symbol_table, retaddr, file);
+		else
+			fprintf(file, "%#"PRIx64"\n", retaddr);
 		// walk the frame pointers: new fp = content of old fp
 		memcpy(&fp, hfp, wordsize);
 		// and return address is always the next address on the stack
@@ -208,7 +229,7 @@ void walk_stack(xc_interface *xc_handle, int domid, int vcpu, int wordsize, FILE
 /**
  * returns 0 on success.
  */
-int do_stack_trace(xc_interface *xc_handle, int domid, xc_dominfo_t *dominfo, int wordsize, FILE *file) {
+int do_stack_trace(xc_interface *xc_handle, int domid, xc_dominfo_t *dominfo, int wordsize, FILE *file, void *symbol_table) {
 	unsigned int vcpu;
 
 	if (xc_domain_pause(xc_handle, domid) < 0) {
@@ -216,13 +237,63 @@ int do_stack_trace(xc_interface *xc_handle, int domid, xc_dominfo_t *dominfo, in
 		return -7;
 	}
 	for (vcpu = 0; vcpu <= dominfo->max_vcpu_id; vcpu++) {
-		walk_stack(xc_handle, domid, vcpu, wordsize, file);
+		walk_stack(xc_handle, domid, vcpu, wordsize, file, symbol_table);
 	}
 	if (xc_domain_unpause(xc_handle, domid) < 0) {
 		fprintf(stderr, "Could not unpause domid %d\n", domid);
 		return -7;
 	}
 	return 0;
+}
+
+void *read_symbol_table(char *symbol_table_file_name)
+{
+	char line[256];
+	char *p, *symbol;
+	size_t len;
+	int count = 0;
+	FILE *f;
+	int ch, i;
+	void *head;
+	element_t element;
+
+	f = fopen(symbol_table_file_name, "r");
+	if (f == NULL) {
+		fprintf(stderr, "failed to open symbol table file %s, will not resolve symbols!\n",
+				symbol_table_file_name);
+		return NULL;
+	}
+
+	// count number of lines, i.e., elements in the file:
+	while((ch = fgetc(f)) != EOF)
+		if (ch == '\n')
+			count++;
+	rewind(f);
+
+	head = binsearch_alloc(1025);
+	if (!head)
+		return NULL;
+	for (i=0; i<count; i++) {
+		if (fgets(line, 256, f) == NULL)
+			break;
+		element.key = strtoull(line, &p, 16);
+		// p should now point to the space between address and type
+		// so jump ahead 3 characters to symbol
+		p += 3;
+		len = strlen(p);
+		symbol = malloc(len+1);
+		if (!symbol)
+			fprintf(stderr, "Error allocating %zu bytes of memory for symbol table entry %d!\n", len, i);
+		else {
+			// don't copy newline
+			strncpy(symbol, p, len-1);
+			element.val.c = symbol;
+		}
+		binsearch_fill(head, &element);
+	}
+	if (i != count)
+		printf("error reading symbol table, expected %d entries, got %d\n", count, i);
+	return head;
 }
 
 void write_file_header(FILE *f, int domid)
@@ -238,14 +309,18 @@ static void print_usage(char *name) {
 	printf("usage:\n");
 	printf("  %s [options] <outfile> <domid>\n\n", name);
 	printf("options:\n");
-	printf("  -F --frequency          Frequency of traces (in per second, default 1)\n");
-	printf("  -T --time               How long to run the tracer (in seconds, default 1)\n");
-	printf("  -M --missed-deadlines   Print a warning to STDERR whenever a deadline is\n");
-	printf("                          missed. Note that this may exacerbate the problem,\n");
-	printf("                          or it may treacherously appear to improve it,\n");
-	printf("                          while it actually doesn't (due to timing quirks)\n");
-	printf("  -v --verbose            Show some more informational output.\n");
-	printf("  -h --help               Print this help message.\n");
+	printf("  -F n --frequency=n         Frequency of traces (in per second, default 1)\n");
+	printf("  -T n --time=n              How long to run the tracer (in seconds, default 1)\n");
+	printf("  -M --missed-deadlines      Print a warning to STDERR whenever a deadline is\n");
+	printf("                             missed. Note that this may exacerbate the problem,\n");
+	printf("                             or it may treacherously appear to improve it,\n");
+	printf("                             while it actually doesn't (due to timing quirks)\n");
+	printf("  -s TAB --symbol-table=TAB  Resolve stack addresses with symbols from TAB.\n");
+	printf("                             The file is expected to contain information\n");
+	printf("                             formatted like the output of 'nm -n'. Please\n");
+	printf("                             note that this slows down tracing.\n");
+	printf("  -v --verbose               Show some more informational output.\n");
+	printf("  -h --help                  Print this help message.\n");
 }
 
 int main(int argc, char **argv) {
@@ -257,15 +332,18 @@ int main(int argc, char **argv) {
 	const int measure_rounds = 100;
 	struct timespec gettime_overhead, minsleep, sleep;
 	struct timespec begin, end, ts;
-	static const char *sopts = "hF:T:Mv";
+	static const char *sopts = "hF:T:Ms:v";
 	static const struct option lopts[] = {
 		{"help",             no_argument,       NULL, 'h'},
 		{"frequency",        required_argument, NULL, 'F'},
 		{"time",             required_argument, NULL, 'T'},
 		{"missed-deadlines", no_argument,       NULL, 'M'},
+		{"symbol-table",     required_argument, NULL, 's'},
 		{"verbose",          no_argument,       NULL, 'v'},
 		{0, 0, 0, 0}
 	};
+	char *symbol_table_file_name = NULL;
+	void *symbol_table = NULL;
 	char *exename;
 	int opt;
 	unsigned int freq = 1;
@@ -287,6 +365,9 @@ int main(int argc, char **argv) {
 				break;
 			case 'M':
 				warn_missed_deadlines = true;
+				break;
+			case 's':
+				symbol_table_file_name = optarg;
 				break;
 			case 'v':
 				verbose = true;
@@ -322,6 +403,10 @@ int main(int argc, char **argv) {
 		}
 	}
 
+	if (symbol_table_file_name) {
+		symbol_table = read_symbol_table(symbol_table_file_name);
+	}
+
 	xc_handle = xc_interface_open(0,0,0);
 	if (xc_handle == NULL) {
 		fprintf(stderr, "Cannot connect to the hypervisor. (Is this Xen?)\n");
@@ -355,7 +440,7 @@ int main(int argc, char **argv) {
 	for (i = 0; i < time; i++) {
 		for (j = 0; j < freq; j++) {
 			clock_gettime(CLOCK_MONOTONIC, &begin);
-			ret = do_stack_trace(xc_handle, domid, &dominfo, wordsize, outfile);
+			ret = do_stack_trace(xc_handle, domid, &dominfo, wordsize, outfile, symbol_table);
 			if (ret) {
 				return ret;
 			}
