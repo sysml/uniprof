@@ -1,2 +1,4 @@
 *.o
-.*.o.d
+.*.d
+uniprof
+symbolize
