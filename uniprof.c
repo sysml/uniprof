@@ -197,7 +197,7 @@ void resolve_and_print_symbol(void *symbol_table, guest_word_t address, FILE *fi
 void walk_stack(xc_interface *xc_handle, int domid, int vcpu, int wordsize, FILE *file, void *symbol_table) {
 	int ret;
 	guest_word_t fp, retaddr;
-	void *hfp;
+	void *hfp, *hrp;
 	vcpu_guest_context_any_t vc;
 
 	DBG("tracing vcpu %d\n", vcpu);
@@ -209,19 +209,27 @@ void walk_stack(xc_interface *xc_handle, int domid, int vcpu, int wordsize, FILE
 	// our first "return" address is the instruction pointer
 	retaddr = instruction_pointer(&vc, wordsize);
 	fp = frame_pointer(&vc, wordsize);
+	DBG("vcpu %d, initial (register-based) fp = %#"PRIx64", retaddr = %#"PRIx64"\n", vcpu, fp, retaddr);
 	while (fp != 0) {
-		hfp = guest_to_host(xc_handle, domid, vcpu, fp);
-		DBG("vcpu %d, fp = %#"PRIx64"->%p->%#"PRIx64", return addr = %#"PRIx64"\n",
-				vcpu, fp, hfp, *((uint64_t*)hfp), retaddr);
 		if (symbol_table)
 			resolve_and_print_symbol(symbol_table, retaddr, file);
 		else
 			fprintf(file, "%#"PRIx64"\n", retaddr);
-		// walk the frame pointers: new fp = content of old fp
+		/* walk the stack: new fp = content of old fp, and return address
+		 * is always the next address on the stack.  We just have to be
+		 * careful if frame pointer and return address reside in
+		 * different 4k pages. In that case, we have to map both
+		 * separately, because they might not be in contiguous memory.
+		 * Otherwise, we can just add wordsize to the fp and get retaddr. */
+		hfp = guest_to_host(xc_handle, domid, vcpu, fp);
+		if ((fp & XC_PAGE_MASK) != ((fp+wordsize) & XC_PAGE_MASK))
+			hrp = guest_to_host(xc_handle, domid, vcpu, fp+wordsize);
+		else
+			hrp = hfp+wordsize;
 		memcpy(&fp, hfp, wordsize);
-		// and return address is always the next address on the stack
-		memcpy(&retaddr, hfp+wordsize, wordsize);
-		DBG("after: return addr = %#"PRIx64", fp = %#"PRIx64"\n", retaddr, fp);
+		memcpy(&retaddr, hrp, wordsize);
+		DBG("vcpu %d, fp = %#"PRIx64"->%p->%#"PRIx64", return addr = %#"PRIx64"->%p->%#"PRIx64"\n",
+				vcpu, fp, hfp, *((uint64_t*)hfp), fp+wordsize, hrp, retaddr);
 	}
 	fprintf(file, "1\n\n");
 }
