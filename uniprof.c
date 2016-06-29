@@ -278,7 +278,7 @@ void *read_symbol_table(char *symbol_table_file_name)
 			count++;
 	rewind(f);
 
-	head = binsearch_alloc(1025);
+	head = binsearch_alloc(count);
 	if (!head)
 		return NULL;
 	for (i=0; i<count; i++) {
