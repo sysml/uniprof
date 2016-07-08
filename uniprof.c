@@ -7,7 +7,8 @@
 #include <time.h>
 #include <errno.h>
 #include <getopt.h>
-#include "xenctrl.h"
+#define XC_WANT_COMPAT_MAP_FOREIGN_API
+#include <xenctrl.h>
 #include "binsearch.h"
 
 
