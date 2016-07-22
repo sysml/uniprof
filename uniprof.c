@@ -353,7 +353,7 @@ int main(int argc, char **argv) {
 	};
 	char *symbol_table_file_name = NULL;
 	void *symbol_table = NULL;
-	char *exename;
+	char *exename, *outname;
 	int opt;
 	unsigned int freq = 1;
 	unsigned int time = 1;
@@ -389,6 +389,7 @@ int main(int argc, char **argv) {
 	sleep.tv_sec = 0; sleep.tv_nsec = (1000000000/freq);
 	exename = argv[0];
 	argv += optind; argc -= optind;
+	outname = argv[0];
 
 	if (argc < 2 || argc > 3) {
 		print_usage(exename);
@@ -401,13 +402,13 @@ int main(int argc, char **argv) {
 		return -2;
 	}
 
-	if ((strlen(argv[0]) == 1) && (!(strncmp(argv[0], "-", 1)))) {
+	if ((strlen(outname) == 1) && (!(strncmp(outname, "-", 1)))) {
 		outfile = stdout;
 	}
 	else {
-		outfile = fopen(argv[1], "w");
+		outfile = fopen(outname, "w");
 		if (!outfile) {
-			fprintf(stderr, "cannot open file %s: %s\n", argv[0], strerror(errno));
+			fprintf(stderr, "cannot open file %s: %s\n", outname, strerror(errno));
 			return -3;
 		}
 	}
