@@ -7,21 +7,18 @@
 #include <time.h>
 #include <errno.h>
 #include <getopt.h>
-#define XC_WANT_COMPAT_MAP_FOREIGN_API
-#include <xenctrl.h>
+#include <xen/domctl.h>
 #include "binsearch.h"
+#include "xen-interface.h"
 
 
-#ifndef DBG
+#undef DBG
 #ifdef DEBUG
 #define DBG(args...) printf(args)
 #else
 #define DBG(args...)
 #endif /* DEBUG */
-#endif /* DBG */
 
-// big enough for 32 bit and 64 bit
-typedef uint64_t guest_word_t;
 
 typedef struct mapped_page {
 	guest_word_t base; // page number, i.e. addr>>XC_PAGE_SHIFT
@@ -115,33 +112,7 @@ static void measure_overheads(struct timespec *gettime_overhead, struct timespec
 	minsleep->tv_nsec         = (sleepnanosecs + timenanosecs) / rounds;
 }
 
-static int get_word_size(xc_interface *xc_handle, int domid) {
-	//TODO: support for HVM
-	unsigned int guest_word_size;
-
-	if (xc_domain_get_guest_width(xc_handle, domid, &guest_word_size))
-		return -1;
-	return guest_word_size;
-}
-
-static guest_word_t frame_pointer(vcpu_guest_context_any_t *vc, int wordsize) {
-	// only possible word sizes are 4 and 8, everything else leads to an
-	// early exit during initialization, since we can't handle it
-	if (wordsize == 4)
-		return vc->x32.user_regs.ebp;
-	else
-		return vc->x64.user_regs.rbp;
-}
-
-static guest_word_t instruction_pointer(vcpu_guest_context_any_t *vc, int wordsize) {
-	//TODO: currently no support for real-mode 32 bit
-	if (wordsize == 4)
-		return vc->x32.user_regs.eip;
-	else
-		return vc->x64.user_regs.rip;
-}
-
-void *guest_to_host(xc_interface *xc_handle, int domid, int vcpu, guest_word_t gaddr) {
+void *guest_to_host(int domid, int vcpu, guest_word_t gaddr) {
 	static mapped_page_t *map_head = NULL;
 	mapped_page_t *map_iter;
 	mapped_page_t *new_item;
@@ -166,8 +137,7 @@ void *guest_to_host(xc_interface *xc_handle, int domid, int vcpu, guest_word_t g
 		return NULL;
 	}
 	new_item->base = base;
-	new_item->mfn = xc_translate_foreign_address(xc_handle, domid, vcpu, base);
-	new_item->buf = xc_map_foreign_range(xc_handle, domid, XC_PAGE_SIZE, PROT_READ, new_item->mfn);
+	xen_map_domu_page(domid, vcpu, base, &new_item->mfn, &new_item->buf);
 	VERBOSE("mapping new page %#"PRIx64"->%p\n", new_item->base, new_item->buf);
 	if (new_item->buf == NULL) {
 		fprintf(stderr, "failed to allocate memory mapping page.\n");
@@ -195,14 +165,14 @@ void resolve_and_print_symbol(void *symbol_table, guest_word_t address, FILE *fi
 	}
 }
 
-void walk_stack(xc_interface *xc_handle, int domid, int vcpu, int wordsize, FILE *file, void *symbol_table) {
+void walk_stack(int domid, int vcpu, int wordsize, FILE *file, void *symbol_table) {
 	int ret;
 	guest_word_t fp, retaddr;
 	void *hfp, *hrp;
-	vcpu_guest_context_any_t vc;
+	vcpu_guest_context_transparent_t vc;
 
 	DBG("tracing vcpu %d\n", vcpu);
-	if ((ret = xc_vcpu_getcontext(xc_handle, domid, vcpu, &vc)) < 0) {
+	if ((ret = get_vcpu_context(domid, vcpu, &vc)) < 0) {
 		printf("Failed to get context for VCPU %d, skipping trace. (ret=%d)\n", vcpu, ret);
 		return;
 	}
@@ -222,9 +192,9 @@ void walk_stack(xc_interface *xc_handle, int domid, int vcpu, int wordsize, FILE
 		 * different 4k pages. In that case, we have to map both
 		 * separately, because they might not be in contiguous memory.
 		 * Otherwise, we can just add wordsize to the fp and get retaddr. */
-		hfp = guest_to_host(xc_handle, domid, vcpu, fp);
+		hfp = guest_to_host(domid, vcpu, fp);
 		if ((fp & XC_PAGE_MASK) != ((fp+wordsize) & XC_PAGE_MASK))
-			hrp = guest_to_host(xc_handle, domid, vcpu, fp+wordsize);
+			hrp = guest_to_host(domid, vcpu, fp+wordsize);
 		else
 			hrp = hfp+wordsize;
 		memcpy(&fp, hfp, wordsize);
@@ -238,17 +208,17 @@ void walk_stack(xc_interface *xc_handle, int domid, int vcpu, int wordsize, FILE
 /**
  * returns 0 on success.
  */
-int do_stack_trace(xc_interface *xc_handle, int domid, xc_dominfo_t *dominfo, int wordsize, FILE *file, void *symbol_table) {
+int do_stack_trace(int domid, unsigned int max_vcpu_id, int wordsize, FILE *file, void *symbol_table) {
 	unsigned int vcpu;
 
-	if (xc_domain_pause(xc_handle, domid) < 0) {
+	if (pause_domain(domid) < 0) {
 		fprintf(stderr, "Could not pause domid %d\n", domid);
 		return -7;
 	}
-	for (vcpu = 0; vcpu <= dominfo->max_vcpu_id; vcpu++) {
-		walk_stack(xc_handle, domid, vcpu, wordsize, file, symbol_table);
+	for (vcpu = 0; vcpu <= max_vcpu_id; vcpu++) {
+		walk_stack(domid, vcpu, wordsize, file, symbol_table);
 	}
-	if (xc_domain_unpause(xc_handle, domid) < 0) {
+	if (unpause_domain(domid) < 0) {
 		fprintf(stderr, "Could not unpause domid %d\n", domid);
 		return -7;
 	}
@@ -335,8 +305,7 @@ static void print_usage(char *name) {
 int main(int argc, char **argv) {
 	int domid, ret;
 	FILE *outfile;
-	xc_interface *xc_handle;
-	xc_dominfo_t dominfo;
+	int max_vcpu_id;
 	int wordsize;
 	const int measure_rounds = 100;
 	struct timespec gettime_overhead, minsleep, sleep;
@@ -417,19 +386,18 @@ int main(int argc, char **argv) {
 		symbol_table = read_symbol_table(symbol_table_file_name);
 	}
 
-	xc_handle = xc_interface_open(0,0,0);
-	if (xc_handle == NULL) {
+	if (xen_interface_open()) {
 		fprintf(stderr, "Cannot connect to the hypervisor. (Is this Xen?)\n");
 		return -4;
 	}
 
-	ret = xc_domain_getinfo(xc_handle, domid, 1, &dominfo);
-	if (ret < 0) {
+	max_vcpu_id = get_max_vcpu_id(domid);
+	if (max_vcpu_id < 0) {
 		fprintf(stderr, "Could not access information for domid %d. (Does domid %d exist?)\n", domid, domid);
 		return -5;
 	}
 
-	wordsize = get_word_size(xc_handle, domid);
+	wordsize = get_word_size(domid);
 	if (wordsize < 0) {
 		fprintf(stderr, "Failed to retrieve word size for domid %d\n", domid);
 		return -6;
@@ -450,7 +418,7 @@ int main(int argc, char **argv) {
 	for (i = 0; i < time; i++) {
 		for (j = 0; j < freq; j++) {
 			clock_gettime(CLOCK_MONOTONIC, &begin);
-			ret = do_stack_trace(xc_handle, domid, &dominfo, wordsize, outfile, symbol_table);
+			ret = do_stack_trace(domid, max_vcpu_id, wordsize, outfile, symbol_table);
 			if (ret) {
 				return ret;
 			}
@@ -478,6 +446,9 @@ int main(int argc, char **argv) {
 			}
 		}
 	}
+
+	if (xen_interface_close())
+		printf("error closing interface to hypervisor. (?!)\n");
 
 	if (missed_deadlines)
 		printf("Missed %lld deadlines\n", missed_deadlines);
