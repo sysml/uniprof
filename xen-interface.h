@@ -14,12 +14,14 @@
 #include <xenctrl.h>
 #include <xencall.h>
 #include <xenforeignmemory.h>
+#define HYPERCALL_NAME "libxencall"
 #define PAGE_SHIFT 12
 #define PAGE_SIZE (1UL << PAGE_SHIFT)
 typedef vcpu_guest_context_t vcpu_guest_context_transparent_t;
 #elif defined(HYPERCALL_LIBXC)
 #define XC_WANT_COMPAT_MAP_FOREIGN_API
 #include <xenctrl.h>
+#define HYPERCALL_NAME "libxc"
 typedef vcpu_guest_context_any_t vcpu_guest_context_transparent_t;
 #endif
 

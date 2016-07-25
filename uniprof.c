@@ -281,7 +281,8 @@ void write_file_header(FILE *f, int domid)
 	struct timespec ts;
 	clock_gettime(CLOCK_REALTIME_COARSE, &ts);
 	strftime(timestring, 63, "%Y-%m-%d %H:%M:%S %Z (%z)", localtime(&ts.tv_sec));
-	fprintf(f, "#unikernel stack tracer\n#tracing domid %d on %s\n\n", domid, timestring);
+	fprintf(f, "#unikernel stack tracer using %s hypercall interface\n", HYPERCALL_NAME);
+	fprintf(f, "#tracing domid %d on %s\n\n", domid, timestring);
 }
 
 static void print_usage(char *name) {
