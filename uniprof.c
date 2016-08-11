@@ -178,8 +178,8 @@ void walk_stack(int domid, int vcpu, int wordsize, FILE *file, void *symbol_tabl
 	}
 
 	// our first "return" address is the instruction pointer
-	retaddr = instruction_pointer(&vc, wordsize);
-	fp = frame_pointer(&vc, wordsize);
+	retaddr = instruction_pointer(&vc);
+	fp = frame_pointer(&vc);
 	DBG("vcpu %d, initial (register-based) fp = %#"PRIx64", retaddr = %#"PRIx64"\n", vcpu, fp, retaddr);
 	while (fp != 0) {
 		if (symbol_table)

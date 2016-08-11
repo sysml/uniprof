@@ -162,35 +162,58 @@ void xen_map_domu_page(int domid, int vcpu, uint64_t addr, unsigned long *mfn, v
 #endif
 }
 
-guest_word_t frame_pointer(vcpu_guest_context_transparent_t *vc, int wordsize) {
+guest_word_t frame_pointer(vcpu_guest_context_transparent_t *vc) {
 	// only possible word sizes are 4 and 8, everything else leads to an
 	// early exit during initialization, since we can't handle it
+#if defined(__i386__)
 #if defined(HYPERCALL_XENCALL)
-	if (wordsize == 4)
-		return vc->user_regs.ebp;
-	else
-		return vc->user_regs.rbp;
+	return vc->user_regs.ebp;
 #elif defined(HYPERCALL_LIBXC)
-	if (wordsize == 4)
-		return vc->x32.user_regs.ebp;
-	else
-		return vc->x64.user_regs.rbp;
+	return vc->x32.user_regs.ebp;
+#endif /* libxc/hypercall */
+#elif defined(__x86_64__)
+#if defined(HYPERCALL_XENCALL)
+	return vc->user_regs.rbp;
+#elif defined(HYPERCALL_LIBXC)
+	return vc->x64.user_regs.rbp;
+#endif /* libxc/hypercall */
+#elif defined(__arm__)
+	// this only works for ARM mode so far!
+	// also, it might not work at all on AACPI ABI!
+#if defined(HYPERCALL_XENCALL)
+	return vc->user_regs.r11_usr;
+#elif defined(HYPERCALL_LIBXC)
+	return vc->c.user_regs.r11_usr;
 #endif
+#else
+#error "Unsupported architecture"
+#endif /* architecture */
 }
 
-guest_word_t instruction_pointer(vcpu_guest_context_transparent_t *vc, int wordsize) {
+guest_word_t instruction_pointer(vcpu_guest_context_transparent_t *vc) {
 	//TODO: currently no support for real-mode 32 bit
+#if defined(__i386__)
 #if defined(HYPERCALL_XENCALL)
-	if (wordsize == 4)
-		return vc->user_regs.eip;
-	else
-		return vc->user_regs.rip;
+	return vc->user_regs.eip;
 #elif defined(HYPERCALL_LIBXC)
-	if (wordsize == 4)
-		return vc->x32.user_regs.eip;
-	else
-		return vc->x64.user_regs.rip;
+	return vc->x32.user_regs.eip;
+#endif /* libxc/hypercall */
+#elif defined(__x86_64__)
+#if defined(HYPERCALL_XENCALL)
+	return vc->user_regs.rip;
+#elif defined(HYPERCALL_LIBXC)
+	return vc->x64.user_regs.rip;
+#endif /* libxc/hypercall */
+#elif defined(__arm__)
+	// this only works for ARM mode so far!
+#if defined(HYPERCALL_XENCALL)
+	return vc->user_regs.pc32;
+#elif defined(HYPERCALL_LIBXC)
+	return vc->c.user_regs.pc32;
 #endif
+#else
+#error "Unsupported architecture"
+#endif /* architecture */
 }
 
 int get_vcpu_context(int domid, int vcpu, vcpu_guest_context_transparent_t *vc) {
