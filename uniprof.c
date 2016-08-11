@@ -400,7 +400,7 @@ int main(int argc, char **argv) {
 
 	wordsize = get_word_size(domid);
 	if (wordsize < 0) {
-		fprintf(stderr, "Failed to retrieve word size for domid %d\n", domid);
+		fprintf(stderr, "Failed to retrieve word size for domid %d (returned %d)\n", domid, wordsize);
 		return -6;
 	}
 	else if ((wordsize != 8) && (wordsize != 4)) {

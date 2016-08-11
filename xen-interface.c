@@ -49,7 +49,14 @@ int xen_interface_close(void) {
 	return 0;
 }
 
-int get_word_size(int domid) {
+/* On x86, we might have 32-bit domains running on 64-bit machines,
+ * so we ask the hypervisor. On ARM, we simply return arch size. */
+int get_word_size(int __maybe_unused domid) {
+#if defined(__arm__)
+	return 4;
+#elif defined(__aarch64__)
+	return 8;
+#else
 	//TODO: support for HVM
 #if defined(HYPERCALL_XENCALL)
 	struct xen_domctl domctl;
@@ -65,7 +72,8 @@ int get_word_size(int domid) {
 	if (xc_domain_get_guest_width(xc_handle, domid, &guest_word_size))
 		return -1;
 	return guest_word_size;
-#endif
+#endif /* call type */
+#endif /* architecture */
 }
 
 

@@ -25,6 +25,10 @@ typedef vcpu_guest_context_t vcpu_guest_context_transparent_t;
 typedef vcpu_guest_context_any_t vcpu_guest_context_transparent_t;
 #endif
 
+#ifndef __maybe_unused
+#define __maybe_unused __attribute__((unused))
+#endif
+
 // big enough for 32 bit and 64 bit
 typedef uint64_t guest_word_t;
 
