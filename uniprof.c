@@ -186,13 +186,21 @@ void walk_stack(int domid, int vcpu, int wordsize, FILE *file, void *symbol_tabl
 			resolve_and_print_symbol(symbol_table, retaddr, file);
 		else
 			fprintf(file, "%#"PRIx64"\n", retaddr);
-		/* walk the stack: new fp = content of old fp, and return address
-		 * is always the next address on the stack.  We just have to be
-		 * careful if frame pointer and return address reside in
-		 * different 4k pages. In that case, we have to map both
-		 * separately, because they might not be in contiguous memory.
+		/* walk the stack: on x86, the fp points to the address of the previous
+		 * frame pointers, so new_fp = *old_fp. On ARM, the fp points to the
+		 * first address of the next frame, with the frame pointer the first
+		 * (=highest) value in the new frame, so new_fp = *old_fp-wordsize.
+		 * The return address is the following word-sized values on the stack,
+		 * so new_ret = new_fp + wordsize.
+		 * We just have to be careful if the new values reside in different
+		 * 4k pages. In that case, we have to map both separately, because
+		 * they might not be in contiguous memory.
 		 * Otherwise, we can just add wordsize to the fp and get retaddr. */
+#if defined(__i386__) || defined(__x86_64__)
 		hfp = guest_to_host(domid, vcpu, fp);
+#elif defined(__arm__)
+		hfp = guest_to_host(domid, vcpu, fp-wordsize);
+#endif
 		if ((fp & XC_PAGE_MASK) != ((fp+wordsize) & XC_PAGE_MASK))
 			hrp = guest_to_host(domid, vcpu, fp+wordsize);
 		else
