@@ -81,6 +81,7 @@ int get_word_size(int __maybe_unused domid) {
 /* libxenforeignmemory doesn't provide an address translation method like libxc does,
  * so it needs a replacement function to walk the page tables.
  */
+#if (defined(__i386__) || defined(__x86_64__))
 unsigned long xen_translate_foreign_address(int domid, int vcpu, unsigned long long virt)
 {
 	vcpu_guest_context_t ctx;
@@ -148,18 +149,79 @@ unsigned long xen_translate_foreign_address(int domid, int vcpu, unsigned long l
 	DBG("found section entry for %llx to mfn 0x%lx\n", virt, addr);
 	return addr;
 }
+#elif defined(__arm__)
+unsigned long xen_translate_foreign_address(int domid, int vcpu, unsigned long long virt)
+{
+#define ARM_PT_BASE_LENGTH 18
+#define ARM_PT_SECTION_LENGTH 12
+	vcpu_guest_context_t ctx;
+	uint32_t pt_base_addr;
+	uint32_t addr, offset;
+	unsigned int N; /* N as defined in the the ARM TCBR specification */
+	int err, entry_type;
+	void *map;
+
+	get_vcpu_context(domid, vcpu, &ctx);
+	N = ctx.ttbcr & 0x7;
+	pt_base_addr = ctx.ttbr0 & ~((1<<(32-ARM_PT_BASE_LENGTH+N))-1);
+	addr = pt_base_addr>>PAGE_SHIFT;
+	DBG("TTCBR N = 0x%x, page table base address = 0x%x (frame number 0x%x)\n", N, pt_base_addr, addr);
+
+	map = xenforeignmemory_map(fmemh, domid, PROT_READ, 1, (xen_pfn_t *)&addr, &err);
+	DBG("mapped page table base 0x%x to %p, err = %d\n", pt_base_addr, map, err);
+
+	/* We take bits 31 to (14-N) from TTBR0 (i.e., pt_base_addr) and map them to 31..(14-N).
+	 * We then take bits (31-N) to 20 from the virtual address and map them to (13-N)..2.
+	 * Bits 1..0 are 0x0. */
+	addr = (virt & (~((1<<(12-N))-1))) >> 20;
+	DBG("PT virt part is 0x%x\n", addr);
+	addr = pt_base_addr + (addr<<2);
+	offset = addr - pt_base_addr;
+	DBG("address-to-lookup is 0x%x, offset to base is 0x%x\n", addr, addr-pt_base_addr);
+
+	memcpy(&addr, map + offset, 4);
+	DBG("content of %p is 0x%x\n", map + offset, addr);
+	/* we now have to check which type of table entry this is */
+	entry_type = addr & 0x3;
+	if (entry_type == 0x2) {
+		/* section entry, directly tells us virt -> mfn translation in bits 31..20 */
+		//memcpy(&addr, map + offset, 4);
+		addr >>= 20;
+		return addr;
+	}
+	else if (entry_type == 0x0) {
+		/* page fault. Should never happen, since we want to look at used memory. */
+		printf("Page fault while trying to resolve guest address!\n");
+		return 0;
+	}
+	else {
+		/* If you thought this was a complete implementation,
+		 * boy, do I have bad news for you! */
+		return 0;
+	}
+}
+#endif /* architecture */
 #endif /* HYPERCALL_XENCALL */
 
 void xen_map_domu_page(int domid, int vcpu, uint64_t addr, unsigned long *mfn, void **buf) {
+	int err __maybe_unused = 0;
 	DBG("mapping page for virt addr %"PRIx64"\n", addr);
 #if defined(HYPERCALL_XENCALL)
+#if defined(__i386__) || defined (__x86_64__)
 	*mfn = xen_translate_foreign_address(domid, vcpu, addr);
+#elif defined(__arm__)
+	*mfn = xen_translate_foreign_address(domid, vcpu, addr);
+#else
+#error "Unsupported architecture"
+#endif
 	// This works since size is 1, so the array has size 1, so it's just a pointer to an int
-	*buf = xenforeignmemory_map(fmemh, domid, PROT_READ, 1, mfn, NULL);
+	*buf = xenforeignmemory_map(fmemh, domid, PROT_READ, 1, (xen_pfn_t *)mfn, &err);
 #elif defined(HYPERCALL_LIBXC)
 	*mfn = xc_translate_foreign_address(xc_handle, domid, vcpu, addr);
+	DBG("addr = %"PRIx64", mfn = %lx\n", addr, *mfn);
 	*buf = xc_map_foreign_range(xc_handle, domid, XC_PAGE_SIZE, PROT_READ, *mfn);
 #endif
+	DBG("virt addr %"PRIx64" has mfn %lx and was mapped to %p\n", addr, *mfn, *buf);
 }
 
 guest_word_t frame_pointer(vcpu_guest_context_transparent_t *vc) {
