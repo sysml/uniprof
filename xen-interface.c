@@ -156,24 +156,39 @@ unsigned long xen_translate_foreign_address(int domid, int vcpu, unsigned long l
 #define ARM_PT_SECTION_LENGTH 12
 	vcpu_guest_context_t ctx;
 	uint32_t pt_base_addr;
+	int arm_pt_base_length = 18;
+	int arm_pt_index_length = 12;
 	uint32_t addr, offset;
 	unsigned int N; /* N as defined in the the ARM TCBR specification */
 	int err, entry_type;
 	void *map;
 
 	get_vcpu_context(domid, vcpu, &ctx);
+	/* N defines the split between the two page tables. If all the most-significant
+	 * N bits of a virtual address are 0, then use page table 0, otherwise use
+	 * page table 1. */
 	N = ctx.ttbcr & 0x7;
-	pt_base_addr = ctx.ttbr0 & ~((1<<(32-ARM_PT_BASE_LENGTH+N))-1);
+	if (virt & (N<<29)) {
+		printf("warning: TTBR1 support not tested at all!\n");
+		pt_base_addr = ctx.ttbr1 & ~((1<<(32-arm_pt_base_length))-1);
+	}
+	else {
+		/* Update translate base and table index width from their
+		 * default values according to N. */
+		arm_pt_base_length += N;
+		arm_pt_index_length -= N;
+		pt_base_addr = ctx.ttbr0 & ~((1<<(32-arm_pt_base_length))-1);
+	}
 	addr = pt_base_addr>>PAGE_SHIFT;
-	DBG("TTCBR N = 0x%x, page table base address = 0x%x (frame number 0x%x)\n", N, pt_base_addr, addr);
-
 	map = xenforeignmemory_map(fmemh, domid, PROT_READ, 1, (xen_pfn_t *)&addr, &err);
 	DBG("mapped page table base 0x%x to %p, err = %d\n", pt_base_addr, map, err);
 
-	/* We take bits 31 to (14-N) from TTBR0 (i.e., pt_base_addr) and map them to 31..(14-N).
+	/* See ARMv7 Reference Manual, Figure B3-9, or B3-10 on how to get a first-level
+	 * deescriptor address:
+	 * We take bits 31 to (14-N) from TTBR0 (i.e., pt_base_addr) and map them to 31..(14-N).
 	 * We then take bits (31-N) to 20 from the virtual address and map them to (13-N)..2.
 	 * Bits 1..0 are 0x0. */
-	addr = (virt & (~((1<<(12-N))-1))) >> 20;
+	addr = (virt & (~((1<<arm_pt_index_length)-1))) >> 20;
 	DBG("PT virt part is 0x%x\n", addr);
 	addr = pt_base_addr + (addr<<2);
 	offset = addr - pt_base_addr;
@@ -181,24 +196,65 @@ unsigned long xen_translate_foreign_address(int domid, int vcpu, unsigned long l
 
 	memcpy(&addr, map + offset, 4);
 	DBG("content of %p is 0x%x\n", map + offset, addr);
+
 	/* we now have to check which type of table entry this is */
 	entry_type = addr & 0x3;
-	if (entry_type == 0x2) {
-		/* section entry, directly tells us virt -> mfn translation in bits 31..20 */
-		//memcpy(&addr, map + offset, 4);
-		addr >>= 20;
-		return addr;
+	DBG("entry type is 0x%x\n", entry_type);
+	switch (entry_type) {
+		case 0x0:
+			/* page fault. Should never happen, since we want to look at used memory. */
+			printf("Page fault while trying to resolve guest address!\n");
+			return 0;
+		case 0x1:
+			/* Large page. We need to do a second-level lookup. (cf. Fig. B3-10)
+			 * The page table address base (bits 31..10) is in addr[31..10], the
+			 * L2 table index (bits 9..2) is in virt[19..12]. Bits 1..0 are 0x0. */
+			printf("Warning: multi-level page walking code not tested at all!\n");
+			addr &= (addr & 0xFFFFFC00);
+			addr |= ((virt & 0xFF000)>>10);
+			if ((addr>>PAGE_SHIFT) != (pt_base_addr>>PAGE_SHIFT)) {
+				/* New address is in a different mage, get that one. */
+				xenforeignmemory_unmap(fmemh, map, 1);
+				map = xenforeignmemory_map(fmemh, domid, PROT_READ, 1, (xen_pfn_t *)&addr, &err);
+			}
+			offset = addr - pt_base_addr;
+			memcpy(&addr, map + offset, 4);
+			/* For the output address, the base (bits 31..16) is in addr[31..16], the
+			 * page index (bits 15..0) is in virt[15..0]. So splice them together.
+			 * The astute reader will notice there is an overlap, and bits 12..15
+			 * are used both in the second-level lookup and as part of the address. */
+			addr = (addr & ~((1<<16)-1)) | (virt & ((1<<16)-1));
+			break;
+		case 0x2:
+			/* Section entry. We're done with lookups. (cf. Fig. B3-9)
+			 * The base (bits 31..20) is in addr[31..20], the
+			 * index (bits 19..0) is in virt[19..0]. So splice them together. */
+			addr = (addr & ~((1<<20)-1)) | (virt & ((1<<20)-1));
+			break;
+		case 0x3:
+			/* Small page. We need to do a second-level lookup (cf. Fig. B3-11)
+			 * This first step is exactly the same as for large pages above. */
+			printf("Warning: multi-level page walking code not tested at all!\n");
+			addr &= (addr & 0xFFFFFC00);
+			addr |= ((virt & 0xFF000)>>10);
+			if ((addr>>PAGE_SHIFT) != (pt_base_addr>>PAGE_SHIFT)) {
+				/* New address is in a different mage, get that one. */
+				xenforeignmemory_unmap(fmemh, map, 1);
+				map = xenforeignmemory_map(fmemh, domid, PROT_READ, 1, (xen_pfn_t *)&addr, &err);
+			}
+			offset = addr - pt_base_addr;
+			memcpy(&addr, map + offset, 4);
+			/* For the output address, the base (bits 31..12) is in addr[31..12], the
+			 * page index (bits 11..0) is in virt[11..0]. So splice them together. */
+			addr = (addr & ~((1<<12)-1)) | (virt & ((1<<12)-1));
+			break;
 	}
-	else if (entry_type == 0x0) {
-		/* page fault. Should never happen, since we want to look at used memory. */
-		printf("Page fault while trying to resolve guest address!\n");
-		return 0;
-	}
-	else {
-		/* If you thought this was a complete implementation,
-		 * boy, do I have bad news for you! */
-		return 0;
-	}
+	/* We now have the machine addres. But actually, we want an
+	 * MFN, so shift the address accordingly. */
+	addr >>= PAGE_SHIFT;
+	DBG("found section entry for %llx to mfn 0x%x\n", virt, addr);
+	xenforeignmemory_unmap(fmemh, map, 1);
+	return addr;
 }
 #endif /* architecture */
 #endif /* HYPERCALL_XENCALL */
