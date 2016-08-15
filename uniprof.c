@@ -6,8 +6,9 @@
 #include <time.h>
 #include <errno.h>
 #include <getopt.h>
-#include "binsearch.h"
-#include "xen-interface.h"
+#include <xen/domctl.h>
+#include <binsearch.h>
+#include <xen-interface.h>
 
 
 #undef DBG

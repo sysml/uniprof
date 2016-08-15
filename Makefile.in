@@ -1,0 +1,35 @@
+XEN_ROOT ?= $(realpath ../xen)
+TARGET_ARCH = @target_arch@
+
+include $(XEN_ROOT)/tools/Rules.mk
+
+CFLAGS   += $(CFLAGS_libxenctrl) -Wall -Wextra -Iinclude
+CXXFLAGS ?= -O3 -Wall -Wextra -MMD -MF .$(if $(filter-out .,$(@D)),$(subst /,@,$(@D))@)$(@F).d
+ifeq (@use_libs@,libxc)
+LDLIBS   += $(LDLIBS_libxenctrl)
+else
+LDLIBS   += $(LDLIBS_libxencall) $(LDLIBS_libxenforeignmemory)
+endif
+
+BIN      = uniprof symbolize
+OBJ      = $(addsuffix .o,$(BIN)) xen-interface-generic.o xen-interface-$(TARGET_ARCH).o
+DEP      = $(addprefix .,$(addsuffix .d,$(OBJ)))
+
+.PHONY: all
+all: $(BIN)
+
+.PHONY: clean distclean
+clean:
+	$(RM) *.a *.so *.o $(BIN) $(DEP) $(OBJ)
+
+distclean: clean
+	-rm -rf autom4te.cache/
+	$(RM) config.log autoscan.log config.cache config.log config.status include/config.h Makefile
+
+uniprof: uniprof.o xen-interface-generic.o xen-interface-$(TARGET_ARCH).o
+	$(CC) $(LDFLAGS) -o $@ $^ $(LDLIBS) $(APPEND_LDFLAGS)
+
+symbolize: symbolize.o
+	$(CXX) $(LDFLAGS) -o $@ $< $(LDLIBS) $(APPEND_LDFLAGS)
+
+-include $(DEP)
