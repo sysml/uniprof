@@ -1,3 +1,4 @@
+ignore/
 *.o
 .*.d
 uniprof
