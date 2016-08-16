@@ -4,13 +4,6 @@
 #include <inttypes.h>
 #include <xen-interface.h>
 
-#undef DBG
-#ifdef DEBUG
-#define DBG(args...) printf(args)
-#else
-#define DBG(args...)
-#endif /* DEBUG */
-
 #if defined(HYPERCALL_XENCALL)
 xencall_handle *callh;
 xenforeignmemory_handle *fmemh;

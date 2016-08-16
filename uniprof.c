@@ -1,3 +1,4 @@
+#include <config.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -9,15 +10,6 @@
 #include <xen/domctl.h>
 #include <binsearch.h>
 #include <xen-interface.h>
-
-
-#undef DBG
-#ifdef DEBUG
-#define DBG(args...) printf(args)
-#else
-#define DBG(args...)
-#endif /* DEBUG */
-
 
 typedef struct mapped_page {
 	guest_word_t base; // page number, i.e. addr>>XC_PAGE_SHIFT

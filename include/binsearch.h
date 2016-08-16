@@ -9,22 +9,16 @@
  * also for queries such as "give me the largest element smaller than x".
  */
 
-//#define BINSEARCH_DEBUG
-
 #include <stdlib.h>
 #include <errno.h>
 
+#undef DBG
 #ifdef BINSEARCH_DEBUG
 #include <stdio.h>
-#endif
-
-#ifndef DBG
-#ifdef BINSEARCH_DEBUG
-#define DBG(args...) printf(args)
+#define DBG(string, args...) printf("[DBG %s:%s] "string, __FILE__, __func__, ##args)
 #else
 #define DBG(args...)
 #endif /* BINSEARCH_DEBUG */
-#endif /* DBG */
 
 /* control information at the head of the binary search array */
 typedef struct {

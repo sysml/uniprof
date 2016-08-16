@@ -9,9 +9,12 @@
 #warning You defined more than one of HYPERCALL_LIBXC, HYPERCALL_XENCALL. This might lead to unexpected results.
 #endif
 
-#if defined(__arm__) && defined(HYPERCALL_LIBXC)
-//#error libxc does not support start tracing on arm
-#endif
+#undef DBG
+#ifdef DEBUG
+#define DBG(string, args...) printf("[DBG %s:%s] "string, __FILE__, __func__, ##args)
+#else
+#define DBG(args...)
+#endif /* DEBUG */
 
 #if defined(HYPERCALL_XENCALL)
 #include <xenctrl.h>

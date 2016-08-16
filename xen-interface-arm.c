@@ -4,13 +4,6 @@
 #include <inttypes.h>
 #include "xen-interface.h"
 
-#undef DBG
-#ifdef DEBUG
-#define DBG(args...) printf(args)
-#else
-#define DBG(args...)
-#endif /* DEBUG */
-
 /* On x86, we might have 32-bit domains running on 64-bit machines,
  * so we ask the hypervisor. On ARM, we simply return arch size. */
 int get_word_size(int __maybe_unused domid) {

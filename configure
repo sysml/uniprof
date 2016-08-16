@@ -695,6 +695,7 @@ ac_user_opts='
 enable_option_checking
 with_libxc
 with_libxencall
+enable_debug
 '
       ac_precious_vars='build_alias
 host_alias
@@ -1317,6 +1318,12 @@ if test -n "$ac_init_help"; then
      short | recursive ) echo "Configuration of uniprof 0.7:";;
    esac
   cat <<\_ACEOF
+
+Optional Features:
+  --disable-option-checking  ignore unrecognized --enable/--with options
+  --disable-FEATURE       do not include FEATURE (same as --enable-FEATURE=no)
+  --enable-FEATURE[=ARG]  include FEATURE [ARG=yes]
+  --enable-debug          print debugging output at runtime
 
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
@@ -2289,6 +2296,13 @@ if test "x$with_libxc" == "xy"; then :
 fi
 
 fi
+# Check whether --enable-debug was given.
+if test "${enable_debug+set}" = set; then :
+  enableval=$enable_debug;
+$as_echo "#define DEBUG 1" >>confdefs.h
+
+fi
+
 
 ac_aux_dir=
 for ac_dir in "$srcdir" "$srcdir/.." "$srcdir/../.."; do

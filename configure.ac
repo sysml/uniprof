@@ -14,6 +14,8 @@ AS_IF([test "x$with_libxc" == "xy"],
               [AC_MSG_ERROR([Cannot specify both --with-libxc and --with-libxencall at the same time.])]
           )
 )
+AC_ARG_ENABLE([debug], [AS_HELP_STRING([--enable-debug],[print debugging output at runtime])],
+              [AC_DEFINE([DEBUG], [1], [enable debugging output])])
 
 AC_CANONICAL_TARGET
 AS_CASE([$target_cpu], [arm*|aarch*], [target_arch="arm"], [i345686|x86*], [target_arch="x86"], [AC_MSG_ERROR([Unsupported CPU architecture $target_cpu])])
