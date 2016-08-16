@@ -152,8 +152,6 @@ unsigned long xen_translate_foreign_address(int domid, int vcpu, unsigned long l
 #elif defined(__arm__)
 unsigned long xen_translate_foreign_address(int domid, int vcpu, unsigned long long virt)
 {
-#define ARM_PT_BASE_LENGTH 18
-#define ARM_PT_SECTION_LENGTH 12
 	vcpu_guest_context_t ctx;
 	uint32_t pt_base_addr;
 	int arm_pt_base_length = 18;
