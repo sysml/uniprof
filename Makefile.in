@@ -1,4 +1,4 @@
-XEN_ROOT ?= $(realpath ../xen)
+XEN_ROOT ?= $(realpath @xenroot@)
 TARGET_ARCH = @target_arch@
 
 include $(XEN_ROOT)/tools/Rules.mk

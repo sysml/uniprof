@@ -652,6 +652,7 @@ build_os
 build_vendor
 build_cpu
 build
+xenroot
 target_alias
 host_alias
 build_alias
@@ -695,6 +696,7 @@ ac_user_opts='
 enable_option_checking
 with_libxc
 with_libxencall
+with_xen
 enable_debug
 '
       ac_precious_vars='build_alias
@@ -1330,6 +1332,8 @@ Optional Packages:
   --without-PACKAGE       do not use PACKAGE (same as --with-PACKAGE=no)
   --with-libxc            use libxc hypercall interface
   --with-libxencall       use libxencall hypercall interface
+  --with-xen=DIR          directory where Xen sources reside [default:
+                          ../xen/@>:@
 
 Some influential environment variables:
   CXX         C++ compiler command
@@ -2296,6 +2300,39 @@ if test "x$with_libxc" == "xy"; then :
 fi
 
 fi
+
+# Check whether --with-xen was given.
+if test "${with_xen+set}" = set; then :
+  withval=$with_xen; xenroot=$withval
+else
+  xenroot=../xen
+fi
+
+as_ac_File=`$as_echo "ac_cv_file_$xenroot/tools" | $as_tr_sh`
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $xenroot/tools" >&5
+$as_echo_n "checking for $xenroot/tools... " >&6; }
+if eval \${$as_ac_File+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  test "$cross_compiling" = yes &&
+  as_fn_error $? "cannot check for file existence when cross compiling" "$LINENO" 5
+if test -r "$xenroot/tools"; then
+  eval "$as_ac_File=yes"
+else
+  eval "$as_ac_File=no"
+fi
+fi
+eval ac_res=\$$as_ac_File
+	       { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_res" >&5
+$as_echo "$ac_res" >&6; }
+if eval test \"x\$"$as_ac_File"\" = x"yes"; then :
+
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: $xenroot does not look like a xen source directory!" >&5
+$as_echo "$as_me: WARNING: $xenroot does not look like a xen source directory!" >&2;}
+fi
+
+
 # Check whether --enable-debug was given.
 if test "${enable_debug+set}" = set; then :
   enableval=$enable_debug;
