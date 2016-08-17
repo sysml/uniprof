@@ -30,7 +30,7 @@ endif
 endif
 
 BIN      = uniprof symbolize
-OBJ      = $(addsuffix .o,$(BIN)) xen-interface-generic.o xen-interface-$(ARCH).o
+OBJ      = $(addsuffix .o,$(BIN)) xen-interface-common.o xen-interface-$(ARCH).o
 DEP      = $(addprefix .,$(addsuffix .d,$(OBJ)))
 
 .PHONY: all
@@ -44,7 +44,7 @@ distclean: clean
 	-rm -rf autom4te.cache/
 	$(RM) config.log autoscan.log config.cache config.log config.status include/config.h Makefile
 
-uniprof: uniprof.o xen-interface-generic.o xen-interface-$(ARCH).o
+uniprof: uniprof.o xen-interface-common.o xen-interface-$(ARCH).o
 	$(CC) $(LDFLAGS) -o $@ $^ $(LDLIBS) $(APPEND_LDFLAGS)
 
 symbolize: symbolize.o
