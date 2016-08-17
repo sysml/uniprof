@@ -14,9 +14,10 @@ AS_IF([test "x$with_libxc" == "xy"],
               [AC_MSG_ERROR([Cannot specify both --with-libxc and --with-libxencall at the same time.])]
           )
 )
-AC_ARG_WITH([xen], [AS_HELP_STRING([--with-xen=DIR],[directory where Xen sources reside @<:@default: ../xen/@>:@])],
-            [xenroot=$withval],[xenroot=../xen])
-AC_CHECK_FILE([$xenroot/tools],[],[AC_MSG_WARN([$xenroot does not look like a xen source directory!])])
+AC_ARG_WITH([xen], [AS_HELP_STRING([--with-xen=DIR],[build against Xen sources in directory @<:@default: build against installed headers/libraries@:>@])], [xenroot=$withval], [use_syslibs="y"])
+AS_IF([test "x$xenroot" != "x"],
+     [AC_CHECK_FILE([$xenroot/tools],[],[AC_MSG_WARN([$xenroot does not look like a xen source directory!])])])
+AC_SUBST(use_syslibs)
 AC_SUBST(xenroot)
 AC_ARG_ENABLE([debug], [AS_HELP_STRING([--enable-debug],[print debugging output at runtime])],
               [AC_DEFINE([DEBUG], [1], [enable debugging output])])

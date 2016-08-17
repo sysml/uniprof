@@ -653,6 +653,7 @@ build_vendor
 build_cpu
 build
 xenroot
+use_syslibs
 target_alias
 host_alias
 build_alias
@@ -1332,8 +1333,8 @@ Optional Packages:
   --without-PACKAGE       do not use PACKAGE (same as --with-PACKAGE=no)
   --with-libxc            use libxc hypercall interface
   --with-libxencall       use libxencall hypercall interface
-  --with-xen=DIR          directory where Xen sources reside [default:
-                          ../xen/@>:@
+  --with-xen=DIR          build against Xen sources in directory [default:
+                          build against installed headers/libraries]
 
 Some influential environment variables:
   CXX         C++ compiler command
@@ -2305,10 +2306,11 @@ fi
 if test "${with_xen+set}" = set; then :
   withval=$with_xen; xenroot=$withval
 else
-  xenroot=../xen
+  use_syslibs="y"
 fi
 
-as_ac_File=`$as_echo "ac_cv_file_$xenroot/tools" | $as_tr_sh`
+if test "x$xenroot" != "x"; then :
+  as_ac_File=`$as_echo "ac_cv_file_$xenroot/tools" | $as_tr_sh`
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for $xenroot/tools" >&5
 $as_echo_n "checking for $xenroot/tools... " >&6; }
 if eval \${$as_ac_File+:} false; then :
@@ -2330,6 +2332,8 @@ if eval test \"x\$"$as_ac_File"\" = x"yes"; then :
 else
   { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: $xenroot does not look like a xen source directory!" >&5
 $as_echo "$as_me: WARNING: $xenroot does not look like a xen source directory!" >&2;}
+fi
+
 fi
 
 
