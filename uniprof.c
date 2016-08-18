@@ -7,12 +7,11 @@
 #include <time.h>
 #include <errno.h>
 #include <getopt.h>
-#include <xen/domctl.h>
 #include <binsearch.h>
 #include <xen-interface.h>
 
 typedef struct mapped_page {
-	guest_word_t base; // page number, i.e. addr>>XC_PAGE_SHIFT
+	guest_word_t base; // page number, i.e. addr>>PAGE_SHIFT
 	unsigned long mfn;
 	void *buf;
 	struct mapped_page *next;
@@ -107,8 +106,8 @@ void *guest_to_host(int domid, int vcpu, guest_word_t gaddr) {
 	static mapped_page_t *map_head = NULL;
 	mapped_page_t *map_iter;
 	mapped_page_t *new_item;
-	guest_word_t base = gaddr & XC_PAGE_MASK;
-	guest_word_t offset = gaddr & ~XC_PAGE_MASK;
+	guest_word_t base = gaddr & PAGE_MASK;
+	guest_word_t offset = gaddr & ~PAGE_MASK;
 
 	map_iter = map_head;
 	while (map_iter != NULL) {
@@ -192,7 +191,7 @@ void walk_stack(int domid, int vcpu, int wordsize, FILE *file, void *symbol_tabl
 #elif defined(__arm__)
 		hfp = guest_to_host(domid, vcpu, fp-wordsize);
 #endif
-		if ((fp & XC_PAGE_MASK) != ((fp+wordsize) & XC_PAGE_MASK))
+		if ((fp & PAGE_MASK) != ((fp+wordsize) & PAGE_MASK))
 			hrp = guest_to_host(domid, vcpu, fp+wordsize);
 		else
 			hrp = hfp+wordsize;

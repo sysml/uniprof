@@ -1,6 +1,6 @@
 #define _GNU_SOURCE 1
-#include <sys/mman.h>
 #include <string.h>
+#include <sys/mman.h>
 #include <inttypes.h>
 #include "xen-interface.h"
 
