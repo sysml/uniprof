@@ -46,7 +46,7 @@ unsigned long xen_translate_foreign_address(int domid, int vcpu, unsigned long l
 	DBG("mapped page table base 0x%x to %p, err = %d\n", pt_base_addr, map, err);
 
 	/* See ARMv7 Reference Manual, Figure B3-9, or B3-10 on how to get a first-level
-	 * deescriptor address:
+	 * descriptor address:
 	 * We take bits 31 to (14-N) from TTBR0 (i.e., pt_base_addr) and map them to 31..(14-N).
 	 * We then take bits (31-N) to 20 from the virtual address and map them to (13-N)..2.
 	 * Bits 1..0 are 0x0. */
