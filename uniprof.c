@@ -1,4 +1,3 @@
-#include <sys/mman.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -7,7 +6,6 @@
 #include <time.h>
 #include <errno.h>
 #include <getopt.h>
-#include <xen/domctl.h>
 #include "binsearch.h"
 #include "xen-interface.h"
 
