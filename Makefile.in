@@ -1,0 +1,53 @@
+ARCH = @target_arch@
+
+# we have two options: build against installed system libraries and headers,
+# or build against a xen source tree. We have to set flags accordingly
+
+ifeq (@use_syslibs@,y)
+# OPTION 1: build against system libraries and headers
+ARCH = @target_arch@
+CPPFLAGS += -D__XEN_TOOLS__ -Iinclude
+CFLAGS   += -O3 -Wall -Wextra -MMD -MF .$(if $(filter-out .,$(@D)),$(subst /,@,$(@D))@)$(@F).d
+CXXFLAGS += -O3 -Wall -Wextra -MMD -MF .$(if $(filter-out .,$(@D)),$(subst /,@,$(@D))@)$(@F).d
+ifeq (@use_libs@,libxc)
+LDLIBS   += -lxenctrl
+else
+LDLIBS   += -lxencall -lxenforeignmemory
+endif
+
+else
+# OPTION 2: build against Xen source tree
+XEN_ROOT ?= $(realpath @xenroot@)
+include $(XEN_ROOT)/tools/Rules.mk
+CPPFLAGS += -D__XEN_TOOLS__ -Iinclude
+CFLAGS   += $(CFLAGS_libxenctrl) -Wall -Wextra
+CXXFLAGS += -O3 -Wall -Wextra -MMD -MF .$(if $(filter-out .,$(@D)),$(subst /,@,$(@D))@)$(@F).d
+ifeq (@use_libs@,libxc)
+LDLIBS   += $(LDLIBS_libxenctrl)
+else
+LDLIBS   += $(LDLIBS_libxencall) $(LDLIBS_libxenforeignmemory)
+endif
+endif
+
+BIN      = uniprof symbolize
+OBJ      = $(addsuffix .o,$(BIN)) xen-interface-common.o xen-interface-$(ARCH).o
+DEP      = $(addprefix .,$(addsuffix .d,$(OBJ)))
+
+.PHONY: all
+all: $(BIN)
+
+.PHONY: clean distclean
+clean:
+	$(RM) *.a *.so *.o $(BIN) $(DEP) $(OBJ)
+
+distclean: clean
+	-rm -rf autom4te.cache/
+	$(RM) config.log autoscan.log config.cache config.log config.status include/config.h Makefile
+
+uniprof: uniprof.o xen-interface-common.o xen-interface-$(ARCH).o
+	$(CC) $(LDFLAGS) -o $@ $^ $(LDLIBS) $(APPEND_LDFLAGS)
+
+symbolize: symbolize.o
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $@ $< $(APPEND_LDFLAGS)
+
+-include $(DEP)

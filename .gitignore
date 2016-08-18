@@ -1,3 +1,12 @@
+ignore/
+autom4te.cache/
+autoscan.log
+config.cache
+config.log
+config.status
+include/config.h
+include/config.h.in~
+Makefile
 *.o
 .*.d
 uniprof
