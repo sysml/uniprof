@@ -4183,7 +4183,7 @@ if test "x$with_libxc" != "xy"; then :
   if test "x$xencall_available" == "xy"; then :
   use_libxencall="y"
 else
-  if test "x$xc_available" != "xy"; then :
+  if test "x$xc_available" == "xy"; then :
   use_libxc="y"
 else
   as_fn_error $? "Neither libxc nor libxencall/libxenforeignmemory found." "$LINENO" 5

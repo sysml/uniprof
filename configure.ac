@@ -77,7 +77,7 @@ AS_IF([test "x$with_libxc" != "xy"],
      AS_IF([test "x$with_libxencall" != "xy"],
           AS_IF([test "x$xencall_available" == "xy"],
                [use_libxencall="y"],
-               AS_IF([test "x$xc_available" != "xy"],
+               AS_IF([test "x$xc_available" == "xy"],
                     [use_libxc="y"],
                     AC_MSG_ERROR([Neither libxc nor libxencall/libxenforeignmemory found.])
                )
