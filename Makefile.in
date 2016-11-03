@@ -11,7 +11,7 @@ ARCH = @target_arch@
 CPPFLAGS += -D__XEN_TOOLS__ -Iinclude
 CFLAGS   += -O3 -Wall -Wextra -MMD -MF .$(if $(filter-out .,$(@D)),$(subst /,@,$(@D))@)$(@F).d
 CXXFLAGS += -O3 -Wall -Wextra -MMD -MF .$(if $(filter-out .,$(@D)),$(subst /,@,$(@D))@)$(@F).d
-ifeq (@use_libs@,libxc)
+ifeq (@hypercall_lib@,libxc)
 LDLIBS   += -lxenctrl
 else
 LDLIBS   += -lxencall -lxenforeignmemory
@@ -24,12 +24,14 @@ include $(XEN_ROOT)/tools/Rules.mk
 CPPFLAGS += -D__XEN_TOOLS__ -Iinclude
 CFLAGS   += $(CFLAGS_libxenctrl) -Wall -Wextra
 CXXFLAGS += -O3 -Wall -Wextra -MMD -MF .$(if $(filter-out .,$(@D)),$(subst /,@,$(@D))@)$(@F).d
-ifeq (@use_libs@,libxc)
+ifeq (@hypercall_lib@,libxc)
 LDLIBS   += $(LDLIBS_libxenctrl)
 else
 LDLIBS   += $(LDLIBS_libxencall) $(LDLIBS_libxenforeignmemory)
 endif
 endif
+
+LDLIBS   += @libunwind@
 
 BIN      = uniprof symbolize
 OBJ      = $(addsuffix .o,$(BIN)) xen-interface-common.o xen-interface-$(ARCH).o
