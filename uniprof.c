@@ -44,6 +44,10 @@
 #include <getopt.h>
 #include <binsearch.h>
 #include <xen-interface.h>
+#ifdef WITH_UNWIND
+#include <libunwind.h>
+#include <libunwind-xen.h>
+#endif
 
 typedef struct mapped_page {
 	guest_word_t base; // page number, i.e. addr>>PAGE_SHIFT
@@ -190,7 +194,7 @@ void resolve_and_print_symbol(void *symbol_table, guest_word_t address, FILE *fi
 	}
 }
 
-void walk_stack(int domid, int vcpu, int wordsize, FILE *file, void *symbol_table) {
+void walk_stack_fp(int domid, int vcpu, int wordsize, FILE *file, void *symbol_table) {
 	int ret;
 	guest_word_t fp, retaddr;
 	void *hfp, *hrp;
@@ -239,9 +243,9 @@ void walk_stack(int domid, int vcpu, int wordsize, FILE *file, void *symbol_tabl
 }
 
 /**
- * returns 0 on success.
+ * Walk the stack via the frame pointer. Returns 0 on success.
  */
-int do_stack_trace(int domid, unsigned int max_vcpu_id, int wordsize, FILE *file, void *symbol_table) {
+int do_stack_trace_fp(int domid, unsigned int max_vcpu_id, int wordsize, FILE *file, void *symbol_table) {
 	unsigned int vcpu;
 
 	if (pause_domain(domid) < 0) {
@@ -249,7 +253,7 @@ int do_stack_trace(int domid, unsigned int max_vcpu_id, int wordsize, FILE *file
 		return -7;
 	}
 	for (vcpu = 0; vcpu <= max_vcpu_id; vcpu++) {
-		walk_stack(domid, vcpu, wordsize, file, symbol_table);
+		walk_stack_fp(domid, vcpu, wordsize, file, symbol_table);
 	}
 	if (unpause_domain(domid) < 0) {
 		fprintf(stderr, "Could not unpause domid %d\n", domid);
@@ -257,6 +261,61 @@ int do_stack_trace(int domid, unsigned int max_vcpu_id, int wordsize, FILE *file
 	}
 	return 0;
 }
+
+
+#ifdef WITH_UNWIND
+void walk_stack_libunwind(struct UXEN_info *ui, unw_addr_space_t as, FILE *file) {
+	unw_cursor_t cursor;
+	unw_word_t addr;
+	const unsigned int BUFLEN = 64;
+	char buf[BUFLEN];
+
+	// This needs to be reinitalized for every stack walk round,
+	// so no reason to save it anywhere outside for re-use.
+	unw_init_remote(&cursor, as, ui);
+
+	// our first "return" address is the instruction pointer
+	unw_get_reg(&cursor, UNW_REG_IP, &addr);
+
+	if (!unw_get_proc_name(&cursor, buf, BUFLEN, &addr))
+		fprintf(file, "%s+%#"PRIx64"\n", buf, addr);
+	else
+		fprintf(file, "%#"PRIx64"\n", addr);
+
+	while (unw_step(&cursor) > 0) {
+		unw_get_reg(&cursor, UNW_REG_IP, &addr);
+		if (!addr)
+			break;
+		if (!unw_get_proc_name(&cursor, buf, BUFLEN, &addr))
+			fprintf(file, "%s+%#"PRIx64"\n", buf, addr);
+		else
+			fprintf(file, "%#"PRIx64"\n", addr);
+	}
+	fprintf(file, "1\n\n");
+}
+
+/**
+ * Walk the stack via eh_frame information parsed by libunwind. Returns 0 on success.
+ */
+int do_stack_trace_libunwind(int domid, unsigned int max_vcpu_id, FILE *file,
+		struct UXEN_info *ui, unw_addr_space_t as) {
+	unsigned int vcpu;
+
+	if (pause_domain(domid) < 0) {
+		fprintf(stderr, "Could not pause domid %d\n", domid);
+		return -7;
+	}
+	for (vcpu = 0; vcpu <= max_vcpu_id; vcpu++) {
+		_UXEN_change_vcpu(ui, vcpu);
+		walk_stack_libunwind(ui, as, file);
+	}
+	if (unpause_domain(domid) < 0) {
+		fprintf(stderr, "Could not unpause domid %d\n", domid);
+		return -7;
+	}
+	return 0;
+}
+#endif
 
 void *read_symbol_table(char *symbol_table_file_name)
 {
@@ -332,6 +391,13 @@ static void print_usage(char *name) {
 	printf("                             The file is expected to contain information\n");
 	printf("                             formatted like the output of 'nm -n'. Please\n");
 	printf("                             note that this slows down tracing.\n");
+#ifdef WITH_UNWIND
+	printf("  -e ELF --elf-file=ELF      Resolve stack addresses with symbols from ELF.\n");
+	printf("                             Furthermore, use libunwind to unwind the stack\n");
+	printf("                             instead of the frame pointer. This allows unwinding\n");
+	printf("                             code compiled with -fomit-frame-pointer, but is\n");
+	printf("                             slower. -s and -e are mutually exclusive.\n");
+#endif
 	printf("  -v --verbose               Show some more informational output.\n");
 	printf("  -V --version               Show version information.\n");
 	printf("  -h --help                  Print this help message.\n");
@@ -345,19 +411,32 @@ int main(int argc, char **argv) {
 	const int measure_rounds = 100;
 	struct timespec gettime_overhead, minsleep, sleep;
 	struct timespec begin, end, ts;
+#ifdef WITH_UNWIND
+	static const char *sopts = "hF:T:Ms:e:vV";
+#else
 	static const char *sopts = "hF:T:Ms:vV";
+#endif
 	static const struct option lopts[] = {
 		{"help",             no_argument,       NULL, 'h'},
 		{"frequency",        required_argument, NULL, 'F'},
 		{"time",             required_argument, NULL, 'T'},
 		{"missed-deadlines", no_argument,       NULL, 'M'},
 		{"symbol-table",     required_argument, NULL, 's'},
+#ifdef WITH_UNWIND
+		{"elf-file",         required_argument, NULL, 'e'},
+#endif
 		{"verbose",          no_argument,       NULL, 'v'},
 		{"version",          no_argument,       NULL, 'V'},
 		{0, 0, 0, 0}
 	};
-	char *symbol_table_file_name = NULL;
+	char *resolver_file_name = NULL;
 	void *symbol_table = NULL;
+#ifdef WITH_UNWIND
+	struct UXEN_info *ui = NULL;
+	unw_addr_space_t as = NULL;
+	bool have_s_or_e = false;
+	bool resolver_is_elf = false;
+#endif
 	char *exename, *outname;
 	int opt;
 	unsigned int freq = 1;
@@ -381,7 +460,23 @@ int main(int argc, char **argv) {
 				warn_missed_deadlines = true;
 				break;
 			case 's':
-				symbol_table_file_name = optarg;
+				resolver_file_name = optarg;
+#ifdef WITH_UNWIND
+				if (have_s_or_e) {
+					printf("-s and -e are mutually exclusive.\n");
+					return -1;
+				}
+				have_s_or_e = true;
+				break;
+			case 'e':
+				if (have_s_or_e) {
+					printf("-s and -e are mutually exclusive.\n");
+					return -1;
+				}
+				have_s_or_e = true;
+				resolver_file_name = optarg;
+				resolver_is_elf = true;
+#endif
 				break;
 			case 'v':
 				verbose = true;
@@ -422,10 +517,6 @@ int main(int argc, char **argv) {
 		}
 	}
 
-	if (symbol_table_file_name) {
-		symbol_table = read_symbol_table(symbol_table_file_name);
-	}
-
 	if (xen_interface_open()) {
 		fprintf(stderr, "Cannot connect to the hypervisor. (Is this Xen?)\n");
 		return -4;
@@ -454,11 +545,28 @@ int main(int argc, char **argv) {
 	DBG("gettime overhead is %ld.%09ld, minimal nanosleep() sleep time is %ld.%09ld\n",
 		gettime_overhead.tv_sec, gettime_overhead.tv_nsec, minsleep.tv_sec, minsleep.tv_nsec);
 
+#ifdef WITH_UNWIND
+	if (resolver_is_elf) {
+		// this implies the ELF file name is set
+		ui = _UXEN_create(domid, 0, resolver_file_name);
+		as = unw_create_addr_space(&_UXEN_accessors, 0);
+	}
+	else
+#endif
+		if (resolver_file_name) {
+			symbol_table = read_symbol_table(resolver_file_name);
+		}
+
 	// The actual stack tracing loop
 	for (i = 0; i < time; i++) {
 		for (j = 0; j < freq; j++) {
 			clock_gettime(CLOCK_MONOTONIC, &begin);
-			ret = do_stack_trace(domid, max_vcpu_id, wordsize, outfile, symbol_table);
+#ifdef WITH_UNWIND
+			if (resolver_is_elf)
+				do_stack_trace_libunwind(domid, max_vcpu_id, outfile, ui, as);
+			else
+#endif
+				ret = do_stack_trace_fp(domid, max_vcpu_id, wordsize, outfile, symbol_table);
 			if (ret) {
 				return ret;
 			}
