@@ -1,4 +1,6 @@
 ARCH = @target_arch@
+prefix = @prefix@
+exec_prefix = @exec_prefix@
 
 # we have two options: build against installed system libraries and headers,
 # or build against a xen source tree. We have to set flags accordingly
@@ -43,6 +45,13 @@ clean:
 distclean: clean
 	-rm -rf autom4te.cache/
 	$(RM) config.log autoscan.log config.cache config.log config.status include/config.h Makefile
+
+install: $(BIN)
+	/bin/cp -v $(BIN) @bindir@/
+
+.PHONY: uninstall
+uninstall:
+	cd @bindir@ && /bin/rm -vf $(BIN)
 
 uniprof: uniprof.o xen-interface-common.o xen-interface-$(ARCH).o
 	$(CC) $(LDFLAGS) -o $@ $^ $(LDLIBS) $(APPEND_LDFLAGS)
