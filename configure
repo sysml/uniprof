@@ -583,7 +583,7 @@ PACKAGE_TARNAME='uniprof'
 PACKAGE_VERSION='0.7'
 PACKAGE_STRING='uniprof 0.7'
 PACKAGE_BUGREPORT='florian.schmidt@neclab.eu'
-PACKAGE_URL=''
+PACKAGE_URL='https://github.com/cnplab/uniprof/'
 
 ac_unique_file="uniprof.c"
 # Factoring default headers for most tests.
@@ -1352,6 +1352,7 @@ Use these variables to override the choices made by `configure' or to help
 it to find libraries and programs with nonstandard names/locations.
 
 Report bugs to <florian.schmidt@neclab.eu>.
+uniprof home page: <https://github.com/cnplab/uniprof/>.
 _ACEOF
 ac_status=$?
 fi
@@ -5018,7 +5019,8 @@ $config_files
 Configuration headers:
 $config_headers
 
-Report bugs to <florian.schmidt@neclab.eu>."
+Report bugs to <florian.schmidt@neclab.eu>.
+uniprof home page: <https://github.com/cnplab/uniprof/>."
 
 _ACEOF
 cat >>$CONFIG_STATUS <<_ACEOF || ac_write_fail=1

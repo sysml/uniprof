@@ -333,6 +333,7 @@ static void print_usage(char *name) {
 	printf("                             formatted like the output of 'nm -n'. Please\n");
 	printf("                             note that this slows down tracing.\n");
 	printf("  -v --verbose               Show some more informational output.\n");
+	printf("  -V --version               Show version information.\n");
 	printf("  -h --help                  Print this help message.\n");
 }
 
@@ -344,7 +345,7 @@ int main(int argc, char **argv) {
 	const int measure_rounds = 100;
 	struct timespec gettime_overhead, minsleep, sleep;
 	struct timespec begin, end, ts;
-	static const char *sopts = "hF:T:Ms:v";
+	static const char *sopts = "hF:T:Ms:vV";
 	static const struct option lopts[] = {
 		{"help",             no_argument,       NULL, 'h'},
 		{"frequency",        required_argument, NULL, 'F'},
@@ -352,6 +353,7 @@ int main(int argc, char **argv) {
 		{"missed-deadlines", no_argument,       NULL, 'M'},
 		{"symbol-table",     required_argument, NULL, 's'},
 		{"verbose",          no_argument,       NULL, 'v'},
+		{"version",          no_argument,       NULL, 'V'},
 		{0, 0, 0, 0}
 	};
 	char *symbol_table_file_name = NULL;
@@ -384,6 +386,10 @@ int main(int argc, char **argv) {
 			case 'v':
 				verbose = true;
 				break;
+			case 'V':
+				printf("uniprof version %s\n", PACKAGE_VERSION);
+				printf("source code available at %s\n", PACKAGE_URL);
+				return 0;
 			case '?':
 				fprintf(stderr, "%s --help for usage\n", argv[0]);
 				return -1;
