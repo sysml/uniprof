@@ -1337,7 +1337,7 @@ Optional Packages:
   --with-libxencall       use libxencall hypercall interface
   --with-xen=DIR          build against Xen sources in directory [default:
                           build against installed headers/libraries]
-  --disable-libunwind     disable libunwind support even if available
+  --without-libunwind     disable libunwind support even if available
                           [default: build against patched libunwind if
                           available]
 

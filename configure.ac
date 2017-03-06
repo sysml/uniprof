@@ -18,7 +18,7 @@ AC_ARG_WITH([xen], [AS_HELP_STRING([--with-xen=DIR],[build against Xen sources i
 AS_IF([test "x$xenroot" != "x"],
      [AC_CHECK_FILE([$xenroot/tools],[],[AC_MSG_WARN([$xenroot does not look like a xen source directory!])])])
 AC_SUBST(xenroot)
-AC_ARG_WITH([libunwind], [AS_HELP_STRING([--disable-libunwind],[disable libunwind support even if available @<:@default: build against patched libunwind if available@:>@])], [], [with_libunwind=check])
+AC_ARG_WITH([libunwind], [AS_HELP_STRING([--without-libunwind],[disable libunwind support even if available @<:@default: build against patched libunwind if available@:>@])], [], [with_libunwind=check])
 AC_ARG_ENABLE([debug], [AS_HELP_STRING([--enable-debug],[print debugging output at runtime])],
               [AC_DEFINE([DEBUG], [1], [enable debugging output])])
 
