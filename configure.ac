@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.69])
-AC_INIT([uniprof], [0.7], [florian.schmidt@neclab.eu], [], [https://github.com/cnplab/uniprof/])
+AC_INIT([uniprof], [1.0], [florian.schmidt@neclab.eu], [], [https://github.com/cnplab/uniprof/])
 AC_CONFIG_SRCDIR([uniprof.c])
 AC_CONFIG_HEADERS([include/config.h])
 
