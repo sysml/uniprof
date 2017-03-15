@@ -51,7 +51,7 @@ install: $(BIN)
 
 .PHONY: uninstall
 uninstall:
-	cd @bindir@ && /bin/rm -vf $(BIN)
+	rm -vf $(addprefix @bindir@/, $(BIN))
 
 uniprof: uniprof.o xen-interface-common.o xen-interface-$(ARCH).o
 	$(CC) $(LDFLAGS) -o $@ $^ $(LDLIBS) $(APPEND_LDFLAGS)
