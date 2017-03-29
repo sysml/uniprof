@@ -103,9 +103,9 @@ method, due to overhead introduced by the libunwind core functions. However,
 it allows you to create stack traces for VMs that don't use the frame
 pointer.
 
-To use this feature, use the `-e [ELF file]` option when starting uniprof,
-giving it the ELF binary of the kernel as parameter. If the binary is
-unstripped, this will also give you symbol resolution.
+To use this feature, use the `-e` or `-E` option when starting uniprof,
+providing the ELF binary of the kernel as parameter. If the binary is
+unstripped, the `-E` option will also give you symbol resolution.
 
 ### Using uniprof for standard Operating Systems
 If your Xen domain is not a unikernel, but rather a standard kernel with

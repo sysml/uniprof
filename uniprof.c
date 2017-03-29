@@ -264,7 +264,7 @@ int do_stack_trace_fp(int domid, unsigned int max_vcpu_id, int wordsize, FILE *f
 
 
 #ifdef WITH_UNWIND
-void walk_stack_libunwind(struct UXEN_info *ui, unw_addr_space_t as, FILE *file) {
+void walk_stack_libunwind(struct UXEN_info *ui, unw_addr_space_t as, FILE *file, bool resolve_symbols) {
 	unw_cursor_t cursor;
 	unw_word_t addr;
 	const unsigned int BUFLEN = 64;
@@ -277,7 +277,7 @@ void walk_stack_libunwind(struct UXEN_info *ui, unw_addr_space_t as, FILE *file)
 	// our first "return" address is the instruction pointer
 	unw_get_reg(&cursor, UNW_REG_IP, &addr);
 
-	if (!unw_get_proc_name(&cursor, buf, BUFLEN, &addr))
+	if (resolve_symbols && !unw_get_proc_name(&cursor, buf, BUFLEN, &addr))
 		fprintf(file, "%s+%#"PRIx64"\n", buf, addr);
 	else
 		fprintf(file, "%#"PRIx64"\n", addr);
@@ -286,7 +286,7 @@ void walk_stack_libunwind(struct UXEN_info *ui, unw_addr_space_t as, FILE *file)
 		unw_get_reg(&cursor, UNW_REG_IP, &addr);
 		if (!addr)
 			break;
-		if (!unw_get_proc_name(&cursor, buf, BUFLEN, &addr))
+		if (resolve_symbols && !unw_get_proc_name(&cursor, buf, BUFLEN, &addr))
 			fprintf(file, "%s+%#"PRIx64"\n", buf, addr);
 		else
 			fprintf(file, "%#"PRIx64"\n", addr);
@@ -298,7 +298,7 @@ void walk_stack_libunwind(struct UXEN_info *ui, unw_addr_space_t as, FILE *file)
  * Walk the stack via eh_frame information parsed by libunwind. Returns 0 on success.
  */
 int do_stack_trace_libunwind(int domid, unsigned int max_vcpu_id, FILE *file,
-		struct UXEN_info *ui, unw_addr_space_t as) {
+		struct UXEN_info *ui, unw_addr_space_t as, bool resolve_symbols) {
 	unsigned int vcpu;
 
 	if (pause_domain(domid) < 0) {
@@ -307,7 +307,7 @@ int do_stack_trace_libunwind(int domid, unsigned int max_vcpu_id, FILE *file,
 	}
 	for (vcpu = 0; vcpu <= max_vcpu_id; vcpu++) {
 		_UXEN_change_vcpu(ui, vcpu);
-		walk_stack_libunwind(ui, as, file);
+		walk_stack_libunwind(ui, as, file, resolve_symbols);
 	}
 	if (unpause_domain(domid) < 0) {
 		fprintf(stderr, "Could not unpause domid %d\n", domid);
@@ -392,11 +392,18 @@ static void print_usage(char *name) {
 	printf("                             formatted like the output of 'nm -n'. Please\n");
 	printf("                             note that this slows down tracing.\n");
 #ifdef WITH_UNWIND
-	printf("  -e ELF --elf-file=ELF      Resolve stack addresses with symbols from ELF.\n");
-	printf("                             Furthermore, use libunwind to unwind the stack\n");
-	printf("                             instead of the frame pointer. This allows unwinding\n");
-	printf("                             code compiled with -fomit-frame-pointer, but is\n");
-	printf("                             slower. -s and -e are mutually exclusive.\n");
+	printf("                             -s, -e, and -E are mutually exclusive.\n");
+	printf("  -e ELF --elf-file=ELF      Use libunwind to unwind the stack, using the\n");
+	printf("                             .eh_frame section of the provided ELF file instead\n");
+	printf("                             of the frame pointer. This allows unwinding code\n");
+	printf("                             compiled with -fomit-frame-pointer, but is slower.\n");
+	printf("                             -s, -e, and -E are mutually exclusive.\n");
+	printf("  -E ELF --elf-resolve=ELF   In addition to using the provided ELF file to\n");
+	printf("                             unwind the stack (as the -e option does), use the\n");
+	printf("                             information in the file's .debug sections to also\n");
+	printf("                             resolve symbols. This requires an unstripped\n");
+	printf("                             binary and is naturally slower than the -e option.\n");
+	printf("                             -s, -e, and -E are mutually exclusive.\n");
 #endif
 	printf("  -v --verbose               Show some more informational output.\n");
 	printf("  -V --version               Show version information.\n");
@@ -412,7 +419,7 @@ int main(int argc, char **argv) {
 	struct timespec gettime_overhead, minsleep, sleep;
 	struct timespec begin, end, ts;
 #ifdef WITH_UNWIND
-	static const char *sopts = "hF:T:Ms:e:vV";
+	static const char *sopts = "hF:T:Ms:e:E:vV";
 #else
 	static const char *sopts = "hF:T:Ms:vV";
 #endif
@@ -424,6 +431,7 @@ int main(int argc, char **argv) {
 		{"symbol-table",     required_argument, NULL, 's'},
 #ifdef WITH_UNWIND
 		{"elf-file",         required_argument, NULL, 'e'},
+		{"elf-resolve",      required_argument, NULL, 'E'},
 #endif
 		{"verbose",          no_argument,       NULL, 'v'},
 		{"version",          no_argument,       NULL, 'V'},
@@ -434,8 +442,9 @@ int main(int argc, char **argv) {
 #ifdef WITH_UNWIND
 	struct UXEN_info *ui = NULL;
 	unw_addr_space_t as = NULL;
-	bool have_s_or_e = false;
+	bool have_seE = false;
 	bool resolver_is_elf = false;
+	bool resolve_symbols_from_elf = false;
 #endif
 	char *exename, *outname;
 	int opt;
@@ -462,18 +471,21 @@ int main(int argc, char **argv) {
 			case 's':
 				resolver_file_name = optarg;
 #ifdef WITH_UNWIND
-				if (have_s_or_e) {
-					printf("-s and -e are mutually exclusive.\n");
+				if (have_seE) {
+					printf("-s, -e, and -E are mutually exclusive.\n");
 					return -1;
 				}
-				have_s_or_e = true;
+				have_seE = true;
 				break;
+			case 'E':
+				resolve_symbols_from_elf = true;
+				// fallthrough
 			case 'e':
-				if (have_s_or_e) {
-					printf("-s and -e are mutually exclusive.\n");
+				if (have_seE) {
+					printf("-s, -e, and -E are mutually exclusive.\n");
 					return -1;
 				}
-				have_s_or_e = true;
+				have_seE = true;
 				resolver_file_name = optarg;
 				resolver_is_elf = true;
 #endif
@@ -563,7 +575,7 @@ int main(int argc, char **argv) {
 			clock_gettime(CLOCK_MONOTONIC, &begin);
 #ifdef WITH_UNWIND
 			if (resolver_is_elf)
-				do_stack_trace_libunwind(domid, max_vcpu_id, outfile, ui, as);
+				do_stack_trace_libunwind(domid, max_vcpu_id, outfile, ui, as, resolve_symbols_from_elf);
 			else
 #endif
 				ret = do_stack_trace_fp(domid, max_vcpu_id, wordsize, outfile, symbol_table);
