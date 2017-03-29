@@ -44,14 +44,20 @@ also build against a Xen source tree. Make sure you at the very least ran a
 "make tools" inside that source tree, so that the required libraries are
 available.
 
-### Profiling a domain
+###### --without-libunwind
+If the configure script finds the libunwind-xen library, it will by default
+add support for it to uniprof. If, for some reason, you do not want this
+behavior, you can disable building against libunwind.
+
+### Profiling a domain using the frame pointer register
 As a first test, start a unikernel domain, note its domid, and run
 
     ./uniprof -F 1 -T 1 - [domid]
 
 You should see an output of a stack trace. If you don't, then you probably
-compiled your unikernel with -fomit-frame-pointer. Frame pointers are required
-for the stack traces, so recompile your binary with -fno-omit-frame-pointer.
+compiled your unikernel with -fomit-frame-pointer. Either recompile your
+unikernel with -fno-omit-frame-pointer, or see below on how to use a specially
+patched libunwind to unwind the stack.
 
 However, even then, you will notice that you only get a bunch of memory
 addresses as output, similar to this:
@@ -81,6 +87,25 @@ address must be resolved to a symbol during the stack walk. For performance
 profiling, you might therefore prefer to only record the addresses and resolve
 them offline after finishing the profiling run. To do so, use the
 `symbolize` tool provided.
+
+### Profiling a domain using libunwind-xen
+If you cannot or do not want to use the frame pointer register to unwind the
+stack, you can use a specially patched version of libunwind (available at
+https://github.com/cnplab/libunwind) to do the unwinding. This requires
+you to have the ELF binary available, and that binary to contain an `.eh_frame`
+section (which generally is there by default). uniprof then compares the
+current IP register to information in the `.eh_frame` to assess the size of the
+currently running function's stack frame. It then restores the return address
+and iterates the lookup process until the end of the stack is reached.
+
+Note that this is currently significantly slower than the frame pointer
+method, due to overhead introduced by the libunwind core functions. However,
+it allows you to create stack traces for VMs that don't use the frame
+pointer.
+
+To use this feature, use the `-e` or `-E` option when starting uniprof,
+providing the ELF binary of the kernel as parameter. If the binary is
+unstripped, the `-E` option will also give you symbol resolution.
 
 ### Using uniprof for standard Operating Systems
 If your Xen domain is not a unikernel, but rather a standard kernel with
