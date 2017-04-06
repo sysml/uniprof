@@ -653,6 +653,7 @@ build_os
 build_vendor
 build_cpu
 build
+oflags
 xenroot
 use_syslibs
 target_alias
@@ -1328,7 +1329,8 @@ Optional Features:
   --disable-option-checking  ignore unrecognized --enable/--with options
   --disable-FEATURE       do not include FEATURE (same as --enable-FEATURE=no)
   --enable-FEATURE[=ARG]  include FEATURE [ARG=yes]
-  --enable-debug          print debugging output at runtime
+  --enable-debug          compile with debugging symbols and print debugging
+                          output at runtime
 
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
@@ -2355,6 +2357,10 @@ fi
 if test "${enable_debug+set}" = set; then :
   enableval=$enable_debug;
 $as_echo "#define DEBUG 1" >>confdefs.h
+ oflags="-O0 -ggdb"
+
+else
+  oflags="-O3"
 
 fi
 
