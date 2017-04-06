@@ -66,7 +66,7 @@ unsigned long xen_translate_foreign_address(int domid, int vcpu, unsigned long l
 	 * page table 1. */
 	N = ctx.ttbcr & 0x7;
 	if (virt & (N<<29)) {
-		printf("warning: TTBR1 support not tested at all!\n");
+		fprintf(stderr, "warning: TTBR1 support not tested at all!\n");
 		pt_base_addr = ctx.ttbr1 & ~((1<<(32-arm_pt_base_length))-1);
 	}
 	else {
@@ -100,13 +100,13 @@ unsigned long xen_translate_foreign_address(int domid, int vcpu, unsigned long l
 	switch (entry_type) {
 		case 0x0:
 			/* page fault. Should never happen, since we want to look at used memory. */
-			printf("Page fault while trying to resolve guest address!\n");
+			fprintf(stderr, "Page fault while trying to resolve guest address!\n");
 			return 0;
 		case 0x1:
 			/* Large page. We need to do a second-level lookup. (cf. Fig. B3-10)
 			 * The page table address base (bits 31..10) is in addr[31..10], the
 			 * L2 table index (bits 9..2) is in virt[19..12]. Bits 1..0 are 0x0. */
-			printf("Warning: multi-level page walking code not tested at all!\n");
+			fprintf(stderr, "Warning: multi-level page walking code not tested at all!\n");
 			addr &= (addr & 0xFFFFFC00);
 			addr |= ((virt & 0xFF000)>>10);
 			if ((addr>>PAGE_SHIFT) != (pt_base_addr>>PAGE_SHIFT)) {
@@ -131,7 +131,7 @@ unsigned long xen_translate_foreign_address(int domid, int vcpu, unsigned long l
 		case 0x3:
 			/* Small page. We need to do a second-level lookup (cf. Fig. B3-11)
 			 * This first step is exactly the same as for large pages above. */
-			printf("Warning: multi-level page walking code not tested at all!\n");
+			fprintf(stderr, "Warning: multi-level page walking code not tested at all!\n");
 			addr &= (addr & 0xFFFFFC00);
 			addr |= ((virt & 0xFF000)>>10);
 			if ((addr>>PAGE_SHIFT) != (pt_base_addr>>PAGE_SHIFT)) {
