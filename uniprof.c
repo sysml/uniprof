@@ -278,18 +278,18 @@ void walk_stack_libunwind(struct UXEN_info *ui, unw_addr_space_t as, FILE *file,
 	unw_get_reg(&cursor, UNW_REG_IP, &addr);
 
 	if (resolve_symbols && !unw_get_proc_name(&cursor, buf, BUFLEN, &addr))
-		fprintf(file, "%s+%#"PRIx64"\n", buf, addr);
+		fprintf(file, "%s+%#"PRIxPTR"\n", buf, addr);
 	else
-		fprintf(file, "%#"PRIx64"\n", addr);
+		fprintf(file, "%#"PRIxPTR"\n", addr);
 
 	while (unw_step(&cursor) > 0) {
 		unw_get_reg(&cursor, UNW_REG_IP, &addr);
 		if (!addr)
 			break;
 		if (resolve_symbols && !unw_get_proc_name(&cursor, buf, BUFLEN, &addr))
-			fprintf(file, "%s+%#"PRIx64"\n", buf, addr);
+			fprintf(file, "%s+%#"PRIxPTR"\n", buf, addr);
 		else
-			fprintf(file, "%#"PRIx64"\n", addr);
+			fprintf(file, "%#"PRIxPTR"\n", addr);
 	}
 	fprintf(file, "1\n\n");
 }
