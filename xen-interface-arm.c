@@ -78,6 +78,8 @@ unsigned long xen_translate_foreign_address(int domid, int vcpu, unsigned long l
 	}
 	addr = pt_base_addr>>PAGE_SHIFT;
 	map = xenforeignmemory_map(fmemh, domid, PROT_READ, 1, (xen_pfn_t *)&addr, &err);
+	if (err)
+		goto out_unmap;
 	DBG("mapped page table base 0x%x to %p, err = %d\n", pt_base_addr, map, err);
 
 	/* See ARMv7 Reference Manual, Figure B3-9, or B3-10 on how to get a first-level
@@ -101,7 +103,7 @@ unsigned long xen_translate_foreign_address(int domid, int vcpu, unsigned long l
 		case 0x0:
 			/* page fault. Should never happen, since we want to look at used memory. */
 			fprintf(stderr, "Page fault while trying to resolve guest address!\n");
-			return 0;
+			goto out_unmap;
 		case 0x1:
 			/* Large page. We need to do a second-level lookup. (cf. Fig. B3-10)
 			 * The page table address base (bits 31..10) is in addr[31..10], the
@@ -113,6 +115,8 @@ unsigned long xen_translate_foreign_address(int domid, int vcpu, unsigned long l
 				/* New address is in a different mage, get that one. */
 				xenforeignmemory_unmap(fmemh, map, 1);
 				map = xenforeignmemory_map(fmemh, domid, PROT_READ, 1, (xen_pfn_t *)&addr, &err);
+				if (err)
+					goto out_unmap;
 			}
 			offset = addr - pt_base_addr;
 			memcpy(&addr, map + offset, 4);
@@ -138,6 +142,8 @@ unsigned long xen_translate_foreign_address(int domid, int vcpu, unsigned long l
 				/* New address is in a different mage, get that one. */
 				xenforeignmemory_unmap(fmemh, map, 1);
 				map = xenforeignmemory_map(fmemh, domid, PROT_READ, 1, (xen_pfn_t *)&addr, &err);
+				if (err)
+					goto out_unmap;
 			}
 			offset = addr - pt_base_addr;
 			memcpy(&addr, map + offset, 4);
@@ -152,6 +158,11 @@ unsigned long xen_translate_foreign_address(int domid, int vcpu, unsigned long l
 	DBG("found section entry for %llx to mfn 0x%x\n", virt, addr);
 	xenforeignmemory_unmap(fmemh, map, 1);
 	return addr;
+
+out_unmap:
+	xenforeignmemory_unmap(fmemh, map, 1);
+	fprintf(stderr, "error trying to map domU memory (bogus frame pointers?)\n");
+	return 0;
 }
 #endif /* HYPERCALL_XENCALL */
 
@@ -160,8 +171,17 @@ void xen_map_domu_page(int domid, int vcpu, uint64_t addr, unsigned long *mfn, v
 	DBG("mapping page for virt addr %"PRIx64"\n", addr);
 #if defined(HYPERCALL_XENCALL)
 	*mfn = xen_translate_foreign_address(domid, vcpu, addr);
-	// This works since size is 1, so the array has size 1, so it's just a pointer to an int
-	*buf = xenforeignmemory_map(fmemh, domid, PROT_READ, 1, (xen_pfn_t *)mfn, &err);
+	if (*mfn) {
+		// This works since size is 1, so the array has size 1, so it's just a pointer to an int
+		*buf = xenforeignmemory_map(fmemh, domid, PROT_READ, 1, (xen_pfn_t *)mfn, &err);
+		if (err) {
+			xenforeignmemory_unmap(fmemh, *buf, 1);
+			*buf = 0;
+		}
+	}
+	else {
+		*buf = 0;
+	}
 #elif defined(HYPERCALL_LIBXC)
 	*mfn = xc_translate_foreign_address(xc_handle, domid, vcpu, addr);
 	DBG("addr = %"PRIx64", mfn = %lx\n", addr, *mfn);

@@ -170,7 +170,11 @@ void *guest_to_host(int domid, int vcpu, guest_word_t gaddr) {
 	VERBOSE("mapping new page %#"PRIx64"->%p\n", new_item->base, new_item->buf);
 	if (new_item->buf == NULL) {
 		fprintf(stderr, "failed to allocate memory mapping page.\n");
-		return NULL;
+		goto out_free;
+	}
+	if (new_item->mfn == 0) {
+		fprintf(stderr, "failed to resolve virtual address.\n");
+		goto out_free;
 	}
 	new_item->next = NULL;
 	if (map_head == NULL)
@@ -178,6 +182,10 @@ void *guest_to_host(int domid, int vcpu, guest_word_t gaddr) {
 	else
 		map_iter->next = new_item;
 	return new_item->buf + offset;
+
+out_free:
+	free(new_item);
+	return NULL;
 }
 
 void resolve_and_print_symbol(void *symbol_table, guest_word_t address, FILE *file) {
@@ -230,6 +238,10 @@ void walk_stack_fp(int domid, int vcpu, int wordsize, FILE *file, void *symbol_t
 #elif defined(__arm__)
 		hfp = guest_to_host(domid, vcpu, fp-wordsize);
 #endif
+		if (!hfp) {
+			fprintf(file, "0\n\n");
+			return;
+		}
 		if ((fp & PAGE_MASK) != ((fp+wordsize) & PAGE_MASK))
 			hrp = guest_to_host(domid, vcpu, fp+wordsize);
 		else

@@ -115,6 +115,8 @@ unsigned long xen_translate_foreign_address(int domid, int vcpu, unsigned long l
 		/* But before we can read from there, we will need to map in that memory */
 		pfn = addr >> PAGE_SHIFT;
 		map = xenforeignmemory_map(fmemh, domid, PROT_READ, 1, &pfn, &err);
+		if (err)
+			goto out_unmap;
 		memcpy(&addr, map + offset, 8);
 		xenforeignmemory_unmap(fmemh, map, 1);
 		/* However, addr is not really an address right now, but rather a PTE,
@@ -131,6 +133,10 @@ unsigned long xen_translate_foreign_address(int domid, int vcpu, unsigned long l
 	DBG("found section entry for %llx to mfn 0x%lx\n", virt, addr);
 	xenforeignmemory_unmap(fmemh, map, 1);
 	return addr;
+
+out_unmap:
+	xenforeignmemory_unmap(fmemh, map, 1);
+	return 0;
 }
 #endif /* HYPERCALL_XENCALL */
 
@@ -139,8 +145,17 @@ void xen_map_domu_page(int domid, int vcpu, uint64_t addr, unsigned long *mfn, v
 	DBG("mapping page for virt addr %"PRIx64"\n", addr);
 #if defined(HYPERCALL_XENCALL)
 	*mfn = xen_translate_foreign_address(domid, vcpu, addr);
-	// This works since size is 1, so the array has size 1, so it's just a pointer to an int
-	*buf = xenforeignmemory_map(fmemh, domid, PROT_READ, 1, (xen_pfn_t *)mfn, &err);
+	if (*mfn) {
+		// This works since size is 1, so the array has size 1, so it's just a pointer to an int
+		*buf = xenforeignmemory_map(fmemh, domid, PROT_READ, 1, (xen_pfn_t *)mfn, &err);
+		if (err) {
+			xenforeignmemory_unmap(fmemh, *buf, 1);
+			*buf = 0;
+		}
+	}
+	else {
+		*buf = 0;
+	}
 #elif defined(HYPERCALL_LIBXC)
 	*mfn = xc_translate_foreign_address(xc_handle, domid, vcpu, addr);
 	DBG("addr = %"PRIx64", mfn = %lx\n", addr, *mfn);
