@@ -357,16 +357,24 @@ void *read_symbol_table(char *symbol_table_file_name)
 	if (!head)
 		return NULL;
 	for (i=0; i<count; i++) {
-		if (fgets(line, 256, f) == NULL)
-			break;
+		if (fgets(line, 256, f) == NULL) {
+			fprintf(stderr, "Error reading entry %d from symbol table file\n", i);
+			goto out_err;
+		}
 		element.key = strtoull(line, &p, 16);
 		// p should now point to the space between address and type
 		// so jump ahead 3 characters to symbol
 		p += 3;
 		len = strlen(p);
+		if (len == 0) {
+			fprintf(stderr, "Error reading entry %d from symbol table file\n", i);
+			goto out_err;
+		}
 		symbol = malloc(len+1);
-		if (!symbol)
+		if (!symbol) {
 			fprintf(stderr, "Error allocating %zu bytes of memory for symbol table entry %d!\n", len, i);
+			goto out_err;
+		}
 		else {
 			// don't copy newline
 			strncpy(symbol, p, len-1);
@@ -374,9 +382,16 @@ void *read_symbol_table(char *symbol_table_file_name)
 		}
 		binsearch_fill(head, &element);
 	}
-	if (i != count)
-		printf("error reading symbol table, expected %d entries, got %d\n", count, i);
+	if (i != count) {
+		fprintf(stderr, "Error reading symbol table from file, expected %d entries, got %d\n", count, i);
+		goto out_err;
+	}
 	return head;
+
+out_err:
+	fprintf(stderr, "Disabling symbol resolution.\n");
+	free(head);
+	return NULL;
 }
 
 void write_file_header(FILE *f, int domid)
