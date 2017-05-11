@@ -191,6 +191,11 @@ out_free:
 void resolve_and_print_symbol(void *symbol_table, guest_word_t address, FILE *file) {
 	element_t *ele;
 
+	if (!symbol_table) {
+		fprintf(file, "%#"PRIx64"\n", address);
+		return;
+	}
+
 	ele = binsearch_find_not_above(symbol_table, address);
 	if (!ele)
 		fprintf(file, "%#"PRIx64"\n", address);
@@ -351,8 +356,14 @@ void *read_symbol_table(char *symbol_table_file_name)
 	while((ch = fgetc(f)) != EOF)
 		if (ch == '\n')
 			count++;
-	rewind(f);
 
+	if (count == 0) {
+		fprintf(stderr, "Symbol table file %s contained no valid entries!\n", symbol_table_file_name);
+		fprintf(stderr, "Disabling symbol resolution.\n");
+		return NULL;
+	}
+
+	rewind(f);
 	head = binsearch_alloc(count);
 	if (!head)
 		return NULL;
