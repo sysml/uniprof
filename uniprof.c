@@ -578,12 +578,6 @@ int main(int argc, char **argv) {
 	}
 	DBG("wordsize is %d\n", wordsize);
 
-	// Initialization stuff: write file header, measure overhead of clock_gettime/minimal sleeptime, etc.
-	write_file_header(outfile, domid);
-	measure_overheads(&gettime_overhead, &minsleep, measure_rounds);
-	DBG("gettime overhead is %ld.%09ld, minimal nanosleep() sleep time is %ld.%09ld\n",
-		gettime_overhead.tv_sec, gettime_overhead.tv_nsec, minsleep.tv_sec, minsleep.tv_nsec);
-
 #ifdef WITH_UNWIND
 	if (resolver_is_elf) {
 		// this implies the ELF file name is set
@@ -595,6 +589,12 @@ int main(int argc, char **argv) {
 		if (resolver_file_name) {
 			symbol_table = read_symbol_table(resolver_file_name);
 		}
+
+	// Initialization stuff: write file header, measure overhead of clock_gettime/minimal sleeptime, etc.
+	write_file_header(outfile, domid);
+	measure_overheads(&gettime_overhead, &minsleep, measure_rounds);
+	DBG("gettime overhead is %ld.%09ld, minimal nanosleep() sleep time is %ld.%09ld\n",
+		gettime_overhead.tv_sec, gettime_overhead.tv_nsec, minsleep.tv_sec, minsleep.tv_nsec);
 
 	// The actual stack tracing loop
 	for (i = 0; i < time; i++) {
