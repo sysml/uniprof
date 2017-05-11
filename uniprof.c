@@ -631,7 +631,8 @@ int main(int argc, char **argv) {
 					fprintf(stderr, "we're falling behind by %ld.%09ld!\n", ts.tv_sec, ts.tv_nsec);
 				}
 			}
-			else {
+			else if ( (j < (freq-1)) && (i < (time-1)) )  {
+				// only sleep if it's not the very last round
 				timespecsub(&ts, &end, &ts);
 				if (timespeccmp(&ts, &minsleep, <)) {
 					// we finished so close to the next deadline that nanosleep() cannot
