@@ -593,6 +593,10 @@ int main(int argc, char **argv) {
 	if (resolver_is_elf) {
 		// this implies the ELF file name is set
 		ui = _UXEN_create(domid, 0, resolver_file_name);
+		if (!ui) {
+			fprintf(stderr, "Cannot read elf file %s. File unreadable or invalid!\n", resolver_file_name);
+			return -7;
+		}
 		as = unw_create_addr_space(&_UXEN_accessors, 0);
 	}
 	else
