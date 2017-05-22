@@ -1,4 +1,6 @@
 ARCH = @target_arch@
+CC = @CC@
+CXX = @CXX@
 prefix = @prefix@
 exec_prefix = @exec_prefix@
 

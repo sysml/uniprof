@@ -191,6 +191,11 @@ out_free:
 void resolve_and_print_symbol(void *symbol_table, guest_word_t address, FILE *file) {
 	element_t *ele;
 
+	if (!symbol_table) {
+		fprintf(file, "%#"PRIx64"\n", address);
+		return;
+	}
+
 	ele = binsearch_find_not_above(symbol_table, address);
 	if (!ele)
 		fprintf(file, "%#"PRIx64"\n", address);
@@ -351,8 +356,14 @@ void *read_symbol_table(char *symbol_table_file_name)
 	while((ch = fgetc(f)) != EOF)
 		if (ch == '\n')
 			count++;
-	rewind(f);
 
+	if (count == 0) {
+		fprintf(stderr, "Symbol table file %s contained no valid entries!\n", symbol_table_file_name);
+		fprintf(stderr, "Disabling symbol resolution.\n");
+		return NULL;
+	}
+
+	rewind(f);
 	head = binsearch_alloc(count);
 	if (!head)
 		return NULL;
@@ -578,16 +589,14 @@ int main(int argc, char **argv) {
 	}
 	DBG("wordsize is %d\n", wordsize);
 
-	// Initialization stuff: write file header, measure overhead of clock_gettime/minimal sleeptime, etc.
-	write_file_header(outfile, domid);
-	measure_overheads(&gettime_overhead, &minsleep, measure_rounds);
-	DBG("gettime overhead is %ld.%09ld, minimal nanosleep() sleep time is %ld.%09ld\n",
-		gettime_overhead.tv_sec, gettime_overhead.tv_nsec, minsleep.tv_sec, minsleep.tv_nsec);
-
 #ifdef WITH_UNWIND
 	if (resolver_is_elf) {
 		// this implies the ELF file name is set
 		ui = _UXEN_create(domid, 0, resolver_file_name);
+		if (!ui) {
+			fprintf(stderr, "Cannot read elf file %s. File unreadable or invalid!\n", resolver_file_name);
+			return -7;
+		}
 		as = unw_create_addr_space(&_UXEN_accessors, 0);
 	}
 	else
@@ -595,6 +604,12 @@ int main(int argc, char **argv) {
 		if (resolver_file_name) {
 			symbol_table = read_symbol_table(resolver_file_name);
 		}
+
+	// Initialization stuff: write file header, measure overhead of clock_gettime/minimal sleeptime, etc.
+	write_file_header(outfile, domid);
+	measure_overheads(&gettime_overhead, &minsleep, measure_rounds);
+	DBG("gettime overhead is %ld.%09ld, minimal nanosleep() sleep time is %ld.%09ld\n",
+		gettime_overhead.tv_sec, gettime_overhead.tv_nsec, minsleep.tv_sec, minsleep.tv_nsec);
 
 	// The actual stack tracing loop
 	for (i = 0; i < time; i++) {
@@ -620,7 +635,8 @@ int main(int argc, char **argv) {
 					fprintf(stderr, "we're falling behind by %ld.%09ld!\n", ts.tv_sec, ts.tv_nsec);
 				}
 			}
-			else {
+			else if ( (j < (freq-1)) && (i < (time-1)) )  {
+				// only sleep if it's not the very last round
 				timespecsub(&ts, &end, &ts);
 				if (timespeccmp(&ts, &minsleep, <)) {
 					// we finished so close to the next deadline that nanosleep() cannot

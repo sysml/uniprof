@@ -155,12 +155,16 @@ element_t *__binsearch_find_not_above(void *head, unsigned int key, unsigned int
 element_t *binsearch_find_exact(void *head, unsigned int key)
 {
 	control_block_t *cb = head;
+	if (cb->num == 0)
+		return NULL;
 	return __binsearch_find_exact(head, key, 0, cb->num-1);
 }
 
 element_t *binsearch_find_not_above(void *head, unsigned int key)
 {
 	control_block_t *cb = head;
+	if (cb->num == 0)
+		return NULL;
 	return __binsearch_find_not_above(head, key, 0, cb->num-1);
 }
 
