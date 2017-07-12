@@ -617,7 +617,7 @@ int main(int argc, char **argv) {
 			clock_gettime(CLOCK_MONOTONIC, &begin);
 #ifdef WITH_UNWIND
 			if (resolver_is_elf)
-				do_stack_trace_libunwind(domid, max_vcpu_id, outfile, ui, as, resolve_symbols_from_elf);
+				ret = do_stack_trace_libunwind(domid, max_vcpu_id, outfile, ui, as, resolve_symbols_from_elf);
 			else
 #endif
 				ret = do_stack_trace_fp(domid, max_vcpu_id, wordsize, outfile, symbol_table);
