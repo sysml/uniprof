@@ -75,6 +75,40 @@ int xen_interface_close(void) {
 	return 0;
 }
 
+int get_domain_state(int domid, unsigned int *state) {
+	int retval;
+#if defined(HYPERCALL_XENCALL)
+	struct xen_domctl domctl;
+	domctl.domain = (domid_t)domid;
+	domctl.interface_version = XEN_DOMCTL_INTERFACE_VERSION;
+	domctl.cmd = XEN_DOMCTL_getdomaininfo;
+	retval = xencall1(callh, __HYPERVISOR_domctl, (unsigned long)(&domctl));
+	*state = domctl.u.getdomaininfo.flags;
+	return retval;
+#elif defined(HYPERCALL_LIBXC)
+	xc_dominfo_t info;
+	retval = xc_domain_getinfo(xc_handle, domid, 1, &info);
+	*state |= (info.shutdown_reason << XEN_DOMINF_shutdownshift);
+	if (info.dying)
+		*state |= XEN_DOMINF_dying;
+	if (info.hvm)
+		*state |= XEN_DOMINF_hvm_guest;
+	if (info.shutdown || info.crashed)
+		*state |= XEN_DOMINF_shutdown;
+	if (info.paused)
+		*state |= XEN_DOMINF_paused;
+	if (info.blocked)
+		*state |= XEN_DOMINF_blocked;
+	if (info.running)
+		*state |= XEN_DOMINF_running;
+	if (info.debugged)
+		*state |= XEN_DOMINF_debugged;
+	if (retval == 1)
+		return 0;
+	return retval;
+#endif
+}
+
 int get_vcpu_context(int domid, int vcpu, vcpu_guest_context_transparent_t *vc) {
 #if defined(HYPERCALL_XENCALL)
 	struct xen_domctl domctl;

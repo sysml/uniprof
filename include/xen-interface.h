@@ -85,6 +85,7 @@ guest_word_t instruction_pointer(vcpu_guest_context_transparent_t *vc);
 guest_word_t frame_pointer(vcpu_guest_context_transparent_t *vc);
 int get_vcpu_context(int domid, int vcpu, vcpu_guest_context_transparent_t *vc);
 void xen_map_domu_page(int domid, int vcpu, uint64_t addr, unsigned long *mfn, void **buf);
+int get_domain_state(int domid, unsigned int *state);
 int pause_domain(int domid);
 int unpause_domain(int domid);
 int get_max_vcpu_id(int domid);

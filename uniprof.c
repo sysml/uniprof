@@ -141,6 +141,22 @@ static void measure_overheads(struct timespec *gettime_overhead, struct timespec
 	minsleep->tv_nsec         = (sleepnanosecs + timenanosecs) / rounds;
 }
 
+int domain_shut_down(int domid) {
+	const unsigned int dying_and_shutdown = XEN_DOMINF_dying | XEN_DOMINF_shutdown;
+	unsigned int domstate;
+
+	// error handling: if get_domain_state() signals an error (e.g.,
+	// from the hypercall), we signal that the domain is shut down,
+	// because we won't be able to do anything sensible with a domain
+	// on which hypercalls fail.
+	if (get_domain_state(domid, &domstate))
+		return 1;
+	if ((domstate & dying_and_shutdown) == dying_and_shutdown)
+		return 1;
+
+	return 0;
+}
+
 void *guest_to_host(int domid, int vcpu, guest_word_t gaddr) {
 	static mapped_page_t *map_head = NULL;
 	mapped_page_t *map_iter;
@@ -613,6 +629,10 @@ int main(int argc, char **argv) {
 
 	// The actual stack tracing loop
 	for (i = 0; i < time; i++) {
+		// is the domain done and just hanging around for our sake?
+		if (domain_shut_down(domid)) {
+			return -8;
+		}
 		for (j = 0; j < freq; j++) {
 			clock_gettime(CLOCK_MONOTONIC, &begin);
 #ifdef WITH_UNWIND
