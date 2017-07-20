@@ -54,8 +54,8 @@ unsigned long xen_translate_foreign_address(domid_t domid, unsigned int vcpu, un
 {
 	vcpu_guest_context_t ctx;
 	uint32_t pt_base_addr;
-	int arm_pt_base_length = 18;
-	int arm_pt_index_length = 12;
+	unsigned int arm_pt_base_length = 18;
+	unsigned int arm_pt_index_length = 12;
 	uint32_t addr, offset;
 	unsigned int N; /* N as defined in the the ARM TTBCR specification */
 	int err, entry_type;
@@ -68,14 +68,14 @@ unsigned long xen_translate_foreign_address(domid_t domid, unsigned int vcpu, un
 	N = ctx.ttbcr & 0x7;
 	if (virt & (N<<29)) {
 		fprintf(stderr, "warning: TTBR1 support not tested at all!\n");
-		pt_base_addr = ctx.ttbr1 & ~((1<<(32-arm_pt_base_length))-1);
+		pt_base_addr = ctx.ttbr1 & ~((1UL<<(32-arm_pt_base_length))-1);
 	}
 	else {
 		/* Update translate base and table index width from their
 		 * default values according to N. */
 		arm_pt_base_length += N;
 		arm_pt_index_length -= N;
-		pt_base_addr = ctx.ttbr0 & ~((1<<(32-arm_pt_base_length))-1);
+		pt_base_addr = ctx.ttbr0 & ~((1UL<<(32-arm_pt_base_length))-1);
 	}
 	addr = pt_base_addr>>PAGE_SHIFT;
 	map = xenforeignmemory_map(fmemh, domid, PROT_READ, 1, (xen_pfn_t *)&addr, &err);
@@ -88,7 +88,7 @@ unsigned long xen_translate_foreign_address(domid_t domid, unsigned int vcpu, un
 	 * We take bits 31 to (14-N) from TTBR0 (i.e., pt_base_addr) and map them to 31..(14-N).
 	 * We then take bits (31-N) to 20 from the virtual address and map them to (13-N)..2.
 	 * Bits 1..0 are 0x0. */
-	addr = (virt & (~((1<<arm_pt_index_length)-1))) >> 20;
+	addr = (virt & (~((1UL<<arm_pt_index_length)-1))) >> 20;
 	DBG("PT virt part is 0x%x\n", addr);
 	addr = pt_base_addr + (addr<<2);
 	offset = addr - pt_base_addr;
@@ -125,13 +125,13 @@ unsigned long xen_translate_foreign_address(domid_t domid, unsigned int vcpu, un
 			 * page index (bits 15..0) is in virt[15..0]. So splice them together.
 			 * The astute reader will notice there is an overlap, and bits 12..15
 			 * are used both in the second-level lookup and as part of the address. */
-			addr = (addr & ~((1<<16)-1)) | (virt & ((1<<16)-1));
+			addr = (addr & ~((1UL<<16)-1)) | (virt & ((1UL<<16)-1));
 			break;
 		case 0x2:
 			/* Section entry. We're done with lookups. (cf. Fig. B3-9)
 			 * The base (bits 31..20) is in addr[31..20], the
 			 * index (bits 19..0) is in virt[19..0]. So splice them together. */
-			addr = (addr & ~((1<<20)-1)) | (virt & ((1<<20)-1));
+			addr = (addr & ~((1UL<<20)-1)) | (virt & ((1UL<<20)-1));
 			break;
 		case 0x3:
 			/* Small page. We need to do a second-level lookup (cf. Fig. B3-11)
@@ -150,7 +150,7 @@ unsigned long xen_translate_foreign_address(domid_t domid, unsigned int vcpu, un
 			memcpy(&addr, map + offset, 4);
 			/* For the output address, the base (bits 31..12) is in addr[31..12], the
 			 * page index (bits 11..0) is in virt[11..0]. So splice them together. */
-			addr = (addr & ~((1<<12)-1)) | (virt & ((1<<12)-1));
+			addr = (addr & ~((1UL<<12)-1)) | (virt & ((1UL<<12)-1));
 			break;
 	}
 	/* We now have the machine addres. But actually, we want an

@@ -103,7 +103,7 @@ static time_t get_time_nsec(void)
 {
 	struct timespec ts;
 	clock_gettime(CLOCK_MONOTONIC, &ts);
-	return ts.tv_sec * 1000000000LL + ts.tv_nsec;
+	return ts.tv_sec * 1000000000L + ts.tv_nsec;
 }
 static void busywait(time_t nsecs)
 {
@@ -557,7 +557,7 @@ int main(int argc, char **argv) {
 				return -1;
 		}
 	}
-	sleep.tv_sec = 0; sleep.tv_nsec = (1000000000/freq);
+	sleep.tv_sec = 0; sleep.tv_nsec = (long)(1000000000/freq);
 	exename = argv[0];
 	argv += optind; argc -= optind;
 	outname = argv[0];
