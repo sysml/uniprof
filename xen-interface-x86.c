@@ -61,13 +61,12 @@ int get_word_size(domid_t domid, unsigned int *wordsize) {
 /* libxenforeignmemory doesn't provide an address translation method like libxc does,
  * so it needs a replacement function to walk the page tables.
  */
-unsigned long xen_translate_foreign_address(domid_t domid, unsigned int vcpu, uint64_t virt)
+xen_pfn_t xen_translate_foreign_address(domid_t domid, unsigned int vcpu, uint64_t virt)
 {
 	vcpu_guest_context_t ctx;
 	unsigned int wordsize, levels, i;
 	int err;
-	uint64_t addr, mask, clamp, offset;
-	xen_pfn_t pfn;
+	xen_pfn_t addr, mask, offset, pfn;
 	void *map;
 
 	get_vcpu_context(domid, vcpu, &ctx);
@@ -77,19 +76,18 @@ unsigned long xen_translate_foreign_address(domid_t domid, unsigned int vcpu, ui
 	if (wordsize == 8) {
 		/* 64-bit has a 4-level page table */
 		levels = 4;
-		/* clamp values to 48 bit virtual address range */
-		clamp = (1ULL<<48) - 1;
 		addr = (uint64_t)xen_cr3_to_pfn_x86_64(ctx.ctrlreg[3]) << PAGE_SHIFT;
-		addr &= clamp;
+		/* clamp values to 48 bit virtual address range */
+		addr &= ((1ULL<<48) - 1);
 	}
 	else {  /* wordsize == 4, any weird other values throw and error much earlier */
 		/* 32-bit has a 3-level page table */
 		levels = 3;
-		/* clamp value to 32 bit address range */
-		clamp = (1ULL<<32) - 1;
 		addr = (uint32_t)xen_cr3_to_pfn_x86_32(ctx.ctrlreg[3]) << PAGE_SHIFT;
+		/* clamp value to 32 bit address range */
+		addr &= ((1ULL<<32) - 1);
 	}
-	DBG("page table base address is 0x%lx\n", addr);
+	DBG("page table base address is 0x%"PRI_xen_pfn"\n", addr);
 	/* See AMD64 Architecture Programmer's Manual, Volume 2: System Programming,
 	 * rev 3.22, p. 127, Fig. 5-9 for 32-bit and p, 132, Fig. 5-17 for 64-bit. */
 	/* Each page table considers a 9-bit range.
@@ -108,8 +106,8 @@ unsigned long xen_translate_foreign_address(domid_t domid, unsigned int vcpu, ui
 		 * Since PTEs are 8 bytes for both 64-bit and 32-bit (Xen doesn't
 		 * seem to emulate legacy non-PAE setups with 4-byte PTEs),
 		 * multiply the page table entry number by 8. */
-		offset = ((virt & mask) >> (ffsll((long long)mask) - 1)) * 8;
-		DBG("level %d page walk gives us offset 0x%lx\n", i, offset);
+		offset = ((virt & mask) >> (ffsl((long)mask) - 1)) * 8;
+		DBG("level %d page walk gives us offset 0x%"PRI_xen_pfn"\n", i, offset);
 		/* But before we can read from there, we will need to map in that memory */
 		pfn = addr >> PAGE_SHIFT;
 		map = xenforeignmemory_map(fmemh, domid, PROT_READ, 1, &pfn, &err);
@@ -121,14 +119,14 @@ unsigned long xen_translate_foreign_address(domid_t domid, unsigned int vcpu, ui
 		 * which contains the base address in bits 51..12. No shifting necessary,
 		 * because the base address in the PTE is a PFN. */
 		addr &= 0x000FFFFFFFFFF000ULL;
-		DBG("level %d page table tells us to look at address 0x%lx\n", i, addr);
+		DBG("level %d page table tells us to look at address 0x%"PRI_xen_pfn"\n", i, addr);
 		/* Move the mask by 9 bits, and go on to the next round */
 		mask >>= 9;
 	}
 	/* We now have the machine addres. But actually, we want an
 	 * MFN, so shift the address accordingly. */
 	addr >>= PAGE_SHIFT;
-	DBG("found section entry for 0x%"PRIx64" to mfn 0x%lx\n", virt, addr);
+	DBG("found section entry for 0x%"PRIx64" to mfn 0x%"PRI_xen_pfn"\n", virt, addr);
 	return addr;
 
 out_unmap:
@@ -137,14 +135,14 @@ out_unmap:
 }
 #endif /* HYPERCALL_XENCALL */
 
-void xen_map_domu_page(domid_t domid, unsigned int vcpu, uint64_t addr, unsigned long *mfn, void **buf) {
+void xen_map_domu_page(domid_t domid, unsigned int vcpu, uint64_t addr, xen_pfn_t *mfn, void **buf) {
 	int err _maybe_unused = 0;
 	DBG("mapping page for virt addr %"PRIx64"\n", addr);
 #if defined(HYPERCALL_XENCALL)
 	*mfn = xen_translate_foreign_address(domid, vcpu, addr);
 	if (*mfn) {
 		// This works since size is 1, so the array has size 1, so it's just a pointer to an int
-		*buf = xenforeignmemory_map(fmemh, domid, PROT_READ, 1, (xen_pfn_t *)mfn, &err);
+		*buf = xenforeignmemory_map(fmemh, domid, PROT_READ, 1, mfn, &err);
 		if (err) {
 			xenforeignmemory_unmap(fmemh, *buf, 1);
 			*buf = 0;

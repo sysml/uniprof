@@ -51,7 +51,7 @@
 
 typedef struct mapped_page {
 	guest_word_t base; // page number, i.e., addr>>PAGE_SHIFT
-	unsigned long mfn;
+	xen_pfn_t mfn;
 	void *buf;
 	struct mapped_page *next;
 } mapped_page_t;

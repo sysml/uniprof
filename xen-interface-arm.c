@@ -50,13 +50,13 @@ int get_word_size(domid_t _maybe_unused domid, unsigned int *wordsize) {
 }
 
 #if defined(HYPERCALL_XENCALL)
-unsigned long xen_translate_foreign_address(domid_t domid, unsigned int vcpu, unsigned long long virt)
+xen_pfn_t xen_translate_foreign_address(domid_t domid, unsigned int vcpu, unsigned long long virt)
 {
 	vcpu_guest_context_t ctx;
-	uint32_t pt_base_addr;
+	xen_pfn_t pt_base_addr;
 	unsigned int arm_pt_base_length = 18;
 	unsigned int arm_pt_index_length = 12;
-	uint32_t addr, offset;
+	xen_pfn_t addr, offset;
 	unsigned int N; /* N as defined in the the ARM TTBCR specification */
 	int err, entry_type;
 	void *map;
@@ -78,10 +78,10 @@ unsigned long xen_translate_foreign_address(domid_t domid, unsigned int vcpu, un
 		pt_base_addr = ctx.ttbr0 & ~((1UL<<(32-arm_pt_base_length))-1);
 	}
 	addr = pt_base_addr>>PAGE_SHIFT;
-	map = xenforeignmemory_map(fmemh, domid, PROT_READ, 1, (xen_pfn_t *)&addr, &err);
+	map = xenforeignmemory_map(fmemh, domid, PROT_READ, 1, &addr, &err);
 	if (err)
 		goto out_unmap;
-	DBG("mapped page table base 0x%x to %p, err = %d\n", pt_base_addr, map, err);
+	DBG("mapped page table base 0x%"PRI_xen_pfn" to %p, err = %d\n", pt_base_addr, map, err);
 
 	/* See ARMv7 Reference Manual, Figure B3-9, or B3-10 on how to get a first-level
 	 * descriptor address:
@@ -89,13 +89,13 @@ unsigned long xen_translate_foreign_address(domid_t domid, unsigned int vcpu, un
 	 * We then take bits (31-N) to 20 from the virtual address and map them to (13-N)..2.
 	 * Bits 1..0 are 0x0. */
 	addr = (virt & (~((1UL<<arm_pt_index_length)-1))) >> 20;
-	DBG("PT virt part is 0x%x\n", addr);
+	DBG("PT virt part is 0x%"PRI_xen_pfn"\n", addr);
 	addr = pt_base_addr + (addr<<2);
 	offset = addr - pt_base_addr;
-	DBG("address-to-lookup is 0x%x, offset to base is 0x%x\n", addr, addr-pt_base_addr);
+	DBG("address-to-lookup is 0x%"PRI_xen_pfn", offset to base is 0x%"PRI_xen_pfn"\n", addr, addr-pt_base_addr);
 
 	memcpy(&addr, map + offset, 4);
-	DBG("content of %p is 0x%x\n", map + offset, addr);
+	DBG("content of %p is 0x%"PRI_xen_pfn"\n", map + offset, addr);
 
 	/* we now have to check which type of table entry this is */
 	entry_type = addr & 0x3;
@@ -156,7 +156,7 @@ unsigned long xen_translate_foreign_address(domid_t domid, unsigned int vcpu, un
 	/* We now have the machine addres. But actually, we want an
 	 * MFN, so shift the address accordingly. */
 	addr >>= PAGE_SHIFT;
-	DBG("found section entry for %llx to mfn 0x%x\n", virt, addr);
+	DBG("found section entry for %llx to mfn 0x%"PRI_xen_pfn"\n", virt, addr);
 	xenforeignmemory_unmap(fmemh, map, 1);
 	return addr;
 
@@ -167,14 +167,14 @@ out_unmap:
 }
 #endif /* HYPERCALL_XENCALL */
 
-void xen_map_domu_page(domid_t domid, unsigned int vcpu, uint64_t addr, unsigned long *mfn, void **buf) {
+void xen_map_domu_page(domid_t domid, unsigned int vcpu, uint64_t addr, xen_pfn_t *mfn, void **buf) {
 	int err _maybe_unused = 0;
 	DBG("mapping page for virt addr %"PRIx64"\n", addr);
 #if defined(HYPERCALL_XENCALL)
 	*mfn = xen_translate_foreign_address(domid, vcpu, addr);
 	if (*mfn) {
 		// This works since size is 1, so the array has size 1, so it's just a pointer to an int
-		*buf = xenforeignmemory_map(fmemh, domid, PROT_READ, 1, (xen_pfn_t *)mfn, &err);
+		*buf = xenforeignmemory_map(fmemh, domid, PROT_READ, 1, mfn, &err);
 		if (err) {
 			xenforeignmemory_unmap(fmemh, *buf, 1);
 			*buf = 0;
@@ -188,7 +188,7 @@ void xen_map_domu_page(domid_t domid, unsigned int vcpu, uint64_t addr, unsigned
 	DBG("addr = %"PRIx64", mfn = %lx\n", addr, *mfn);
 	*buf = xc_map_foreign_range(xc_handle, domid, XC_PAGE_SIZE, PROT_READ, *mfn);
 #endif
-	DBG("virt addr %"PRIx64" has mfn %lx and was mapped to %p\n", addr, *mfn, *buf);
+	DBG("virt addr %"PRIx64" has mfn %"PRI_xen_pfn" and was mapped to %p\n", addr, *mfn, *buf);
 }
 
 guest_word_t frame_pointer(const vcpu_guest_context_transparent_t *vc) {
