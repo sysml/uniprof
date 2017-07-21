@@ -157,7 +157,7 @@ int domain_shut_down(domid_t domid) {
 	return 0;
 }
 
-void *guest_to_host(domid_t domid, int vcpu, guest_word_t gaddr) {
+void *guest_to_host(domid_t domid, unsigned int vcpu, guest_word_t gaddr) {
 	static mapped_page_t *map_head = NULL;
 	mapped_page_t *map_iter;
 	mapped_page_t *new_item;
@@ -223,7 +223,7 @@ void resolve_and_print_symbol(void *symbol_table, guest_word_t address, FILE *fi
 	}
 }
 
-void walk_stack_fp(domid_t domid, int vcpu, unsigned int wordsize, FILE *file, void *symbol_table) {
+void walk_stack_fp(domid_t domid, unsigned int vcpu, unsigned int wordsize, FILE *file, void *symbol_table) {
 	int ret;
 	guest_word_t fp, retaddr;
 	void *hfp, *hrp;

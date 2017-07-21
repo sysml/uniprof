@@ -50,7 +50,7 @@ int get_word_size(domid_t _maybe_unused domid, unsigned int *wordsize) {
 }
 
 #if defined(HYPERCALL_XENCALL)
-unsigned long xen_translate_foreign_address(domid_t domid, int vcpu, unsigned long long virt)
+unsigned long xen_translate_foreign_address(domid_t domid, unsigned int vcpu, unsigned long long virt)
 {
 	vcpu_guest_context_t ctx;
 	uint32_t pt_base_addr;
@@ -167,7 +167,7 @@ out_unmap:
 }
 #endif /* HYPERCALL_XENCALL */
 
-void xen_map_domu_page(domid_t domid, int vcpu, uint64_t addr, unsigned long *mfn, void **buf) {
+void xen_map_domu_page(domid_t domid, unsigned int vcpu, uint64_t addr, unsigned long *mfn, void **buf) {
 	int err _maybe_unused = 0;
 	DBG("mapping page for virt addr %"PRIx64"\n", addr);
 #if defined(HYPERCALL_XENCALL)

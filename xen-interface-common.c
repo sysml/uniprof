@@ -109,7 +109,7 @@ int get_domain_state(domid_t domid, unsigned int *state) {
 #endif
 }
 
-int get_vcpu_context(domid_t domid, int vcpu, vcpu_guest_context_transparent_t *vc) {
+int get_vcpu_context(domid_t domid, unsigned int vcpu, vcpu_guest_context_transparent_t *vc) {
 #if defined(HYPERCALL_XENCALL)
 	struct xen_domctl domctl;
 	domctl.domain = domid;
