@@ -41,22 +41,19 @@
 
 /* On x86, we might have 32-bit domains running on 64-bit machines,
  * so we ask the hypervisor. On ARM, we simply return arch size. */
-int get_word_size(int domid) {
+int get_word_size(int domid, unsigned int *wordsize) {
 	//TODO: support for HVM
 #if defined(HYPERCALL_XENCALL)
+	int ret;
 	struct xen_domctl domctl;
 	domctl.domain = (domid_t)domid;
 	domctl.interface_version = XEN_DOMCTL_INTERFACE_VERSION;
 	domctl.cmd = XEN_DOMCTL_get_address_size;
-	if (xencall1(callh, __HYPERVISOR_domctl, (unsigned long)(&domctl)))
-		return -1;
-	return (domctl.u.address_size.size / 8);
+	ret = xencall1(callh, __HYPERVISOR_domctl, (unsigned long)(&domctl));
+	*wordsize = domctl.u.address_size.size / 8;
+	return ret;
 #elif defined(HYPERCALL_LIBXC)
-	unsigned int guest_word_size;
-
-	if (xc_domain_get_guest_width(xc_handle, domid, &guest_word_size))
-		return -1;
-	return guest_word_size;
+	return xc_domain_get_guest_width(xc_handle, domid, wordsize);
 #endif
 }
 
@@ -64,17 +61,18 @@ int get_word_size(int domid) {
 /* libxenforeignmemory doesn't provide an address translation method like libxc does,
  * so it needs a replacement function to walk the page tables.
  */
-unsigned long xen_translate_foreign_address(int domid, int vcpu, unsigned long long virt)
+unsigned long xen_translate_foreign_address(unsigned int domid, unsigned int vcpu, unsigned long long virt)
 {
 	vcpu_guest_context_t ctx;
-	int wordsize, levels;
-	int i, err;
+	unsigned int wordsize;
+	int levels, i, err;
 	uint64_t addr, mask, clamp, offset;
 	xen_pfn_t pfn;
 	void *map;
 
 	get_vcpu_context(domid, vcpu, &ctx);
-	wordsize = get_word_size(domid);
+	if (get_word_size(domid, &wordsize))
+		return 0;
 
 	if (wordsize == 8) {
 		/* 64-bit has a 4-level page table */

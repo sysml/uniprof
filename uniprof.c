@@ -223,7 +223,7 @@ void resolve_and_print_symbol(void *symbol_table, guest_word_t address, FILE *fi
 	}
 }
 
-void walk_stack_fp(int domid, int vcpu, int wordsize, FILE *file, void *symbol_table) {
+void walk_stack_fp(int domid, int vcpu, unsigned int wordsize, FILE *file, void *symbol_table) {
 	int ret;
 	guest_word_t fp, retaddr;
 	void *hfp, *hrp;
@@ -468,8 +468,7 @@ static void print_usage(char *name) {
 int main(int argc, char **argv) {
 	int domid, ret;
 	FILE *outfile;
-	int max_vcpu_id;
-	int wordsize;
+	unsigned int max_vcpu_id, wordsize;
 	const int measure_rounds = 100;
 	struct timespec gettime_overhead, minsleep, sleep;
 	struct timespec begin, end, ts;
@@ -589,14 +588,12 @@ int main(int argc, char **argv) {
 		return -4;
 	}
 
-	max_vcpu_id = get_max_vcpu_id(domid);
-	if (max_vcpu_id < 0) {
+	if (get_max_vcpu_id(domid, &max_vcpu_id) < 0) {
 		fprintf(stderr, "Could not access information for domid %d. (Does domid %d exist?)\n", domid, domid);
 		return -5;
 	}
 
-	wordsize = get_word_size(domid);
-	if (wordsize < 0) {
+	if (get_word_size(domid, &wordsize) < 0) {
 		fprintf(stderr, "Failed to retrieve word size for domid %d (returned %d)\n", domid, wordsize);
 		return -6;
 	}

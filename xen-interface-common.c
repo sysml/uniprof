@@ -147,25 +147,20 @@ int unpause_domain(int domid) {
 #endif
 }
 
-int get_max_vcpu_id(int domid) {
-#if defined(HYPERCALL_XENCALL)
+int get_max_vcpu_id(int domid, unsigned int *max_vcpu_id) {
 	int ret;
+#if defined(HYPERCALL_XENCALL)
 	struct xen_domctl domctl;
 	domctl.domain = (domid_t)domid;
 	domctl.interface_version = XEN_DOMCTL_INTERFACE_VERSION;
 	domctl.cmd = XEN_DOMCTL_getdomaininfo;
 	ret = xencall1(callh, __HYPERVISOR_domctl, (unsigned long)(&domctl));
-	if (ret < 0)
-		return -5;
-	else
-		return domctl.u.getdomaininfo.max_vcpu_id;
+	*max_vcpu_id = domctl.u.getdomaininfo.max_vcpu_id;
+	return ret;
 #elif defined(HYPERCALL_LIBXC)
-	int ret;
 	xc_dominfo_t dominfo;
 	ret = xc_domain_getinfo(xc_handle, domid, 1, &dominfo);
-	if (ret < 0)
-		return -5;
-	else
-		return dominfo.max_vcpu_id;
+	*max_vcpu_id = domctl.u.getdomaininfo.max_vcpu_id;
+	return ret;
 #endif
 }

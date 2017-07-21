@@ -40,12 +40,13 @@
 
 /* On x86, we might have 32-bit domains running on 64-bit machines,
  * so we ask the hypervisor. On ARM, we simply return arch size. */
-int get_word_size(int _maybe_unused domid) {
+int get_word_size(int _maybe_unused domid, unsigned int *wordsize) {
 #if defined(__arm__)
-	return 4;
+	*wordsize = 4;
 #elif defined(__aarch64__)
-	return 8;
+	*wordsize = 8;
 #endif
+	return 0;
 }
 
 #if defined(HYPERCALL_XENCALL)
