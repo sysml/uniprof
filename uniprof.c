@@ -504,9 +504,9 @@ int main(int argc, char **argv) {
 	char *exename, *outname;
 	int opt;
 	unsigned int freq = 1;
-	unsigned int time = 1;
+	unsigned long time = 1;
 	bool warn_missed_deadlines = false;
-	unsigned int i,j;
+	unsigned long i,j;
 	unsigned long long missed_deadlines = 0;
 
 	while ((opt = getopt_long(argc, argv, sopts, lopts, NULL)) != -1) {
