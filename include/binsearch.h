@@ -46,26 +46,24 @@
 
 #include <stdlib.h>
 #include <errno.h>
-
-#undef DBG
-#ifdef BINSEARCH_DEBUG
-#include <stdio.h>
-#define DBG(string, args...) printf("[DBG %s:%s] "string, __FILE__, __func__, ##args)
-#else
-#define DBG(args...)
-#endif /* BINSEARCH_DEBUG */
+/* for guest_word_t and DBG() */
+#include <xen-interface.h>
 
 /* control information at the head of the binary search array */
 typedef struct {
-	unsigned int num;
+	unsigned long num;
 } control_block_t;
-/* the elements inside the array. One int as "key", one union of an int,
+
+typedef guest_word_t binsearch_key_t;
+#define PRI_bsrch PRI_guest_word
+
+/* the elements inside the array. One value as "key", one union of an int,
  * character pointer, and void pointer as "value" that can either carry
  * the value directly, or point to somewhere outside the search array for
  * more complicated values.
  */
 typedef struct {
-	unsigned int key;
+	binsearch_key_t key;
 	union {
 		int value;
 		char *c;
@@ -78,7 +76,7 @@ typedef struct {
  *  contain num elements, plus a control block at the beginning;
  *  Returns pointer to beginning of array on success, 0 otherwise.
  */
-void *binsearch_alloc(unsigned int num)
+void *binsearch_alloc(unsigned long num)
 {
 	void *head;
 	control_block_t *cb;
@@ -96,10 +94,10 @@ void *binsearch_alloc(unsigned int num)
  */
 int binsearch_fill(void *head, element_t *ele)
 {
-	static unsigned int filled = 0;
+	static unsigned long filled = 0;
 	control_block_t *cb = head;
 	element_t *put = head + sizeof(control_block_t) + filled * sizeof(element_t);
-	DBG("filling array position %u\n", filled);
+	DBG("filling array position %lu\n", filled);
 
 	if (++filled > cb->num)
 		return -ENOMEM;
@@ -108,14 +106,15 @@ int binsearch_fill(void *head, element_t *ele)
 	return 0;
 }
 
-element_t *__binsearch_find_exact(void *head, unsigned int key, unsigned int first, unsigned int last)
+element_t *__binsearch_find_exact(void *head, binsearch_key_t key, unsigned long first, unsigned long last)
 {
-	unsigned int median = first + (last-first)/2;
+	unsigned long median = first + (last-first)/2;
 	element_t *fele = (element_t *)(head + sizeof(control_block_t) + first * sizeof(element_t));
 	element_t *lele = (element_t *)(head + sizeof(control_block_t) + last * sizeof(element_t));
 	element_t *mele = (element_t *)(head + sizeof(control_block_t) + median * sizeof(element_t));
 
-	DBG("search array %p from element %u (key %u) to %u (key %u)\n", head, first, fele->key, last, lele->key);
+	DBG("search array %p from element %lu (key %"PRI_bsrch") to %lu (key %"PRI_bsrch")\n",
+			head, first, fele->key, last, lele->key);
 	if (key == fele->key)
 		return fele;
 	else if (key < fele->key)
@@ -132,14 +131,15 @@ element_t *__binsearch_find_exact(void *head, unsigned int key, unsigned int fir
 		return __binsearch_find_exact(head, key, median+1, last);
 }
 
-element_t *__binsearch_find_not_above(void *head, unsigned int key, unsigned int first, unsigned int last)
+element_t *__binsearch_find_not_above(void *head, binsearch_key_t key, unsigned long first, unsigned long last)
 {
-	unsigned int median = first + (last-first)/2;
+	unsigned long median = first + (last-first)/2;
 	element_t *fele = (element_t *)(head + sizeof(control_block_t) + first * sizeof(element_t));
 	element_t *lele = (element_t *)(head + sizeof(control_block_t) + last * sizeof(element_t));
 	element_t *mele = (element_t *)(head + sizeof(control_block_t) + median * sizeof(element_t));
 
-	DBG("search array %p from element %u (key %u) to %u (key %u)\n", head, first, fele->key, last, lele->key);
+	DBG("search array %p from element %lu (key %"PRI_bsrch") to %lu (key %"PRI_bsrch")\n",
+			head, first, fele->key, last, lele->key);
 	if (key < fele->key)
 		return NULL;
 	if ((key >= fele->key) && (key < (fele+1)->key))
@@ -152,7 +152,7 @@ element_t *__binsearch_find_not_above(void *head, unsigned int key, unsigned int
 		return __binsearch_find_not_above(head, key, median, last);
 }
 
-element_t *binsearch_find_exact(void *head, unsigned int key)
+element_t *binsearch_find_exact(void *head, binsearch_key_t key)
 {
 	control_block_t *cb = head;
 	if (cb->num == 0)
@@ -160,7 +160,7 @@ element_t *binsearch_find_exact(void *head, unsigned int key)
 	return __binsearch_find_exact(head, key, 0, cb->num-1);
 }
 
-element_t *binsearch_find_not_above(void *head, unsigned int key)
+element_t *binsearch_find_not_above(void *head, binsearch_key_t key)
 {
 	control_block_t *cb = head;
 	if (cb->num == 0)
@@ -171,14 +171,14 @@ element_t *binsearch_find_not_above(void *head, unsigned int key)
 #ifdef BINSEARCH_DEBUG
 void binsearch_debug_dump_array(void *head)
 {
-	unsigned int num = ((control_block_t *)head)->num;
+	unsigned long num = ((control_block_t *)head)->num;
 	element_t *ele;
-	unsigned int i;
+	unsigned long i;
 
-	printf("binary search array starting at %p can contain %u elements\n",head, num);
+	printf("binary search array starting at %p can contain %lu elements\n", head, num);
 	for (i=0; i < num; i++) {
 		ele = (element_t *)(head + sizeof(control_block_t) + (i * sizeof(element_t)));
-		printf("Element %u contains key %u->%s\n", i, ele->key, ele->val.c);
+		printf("Element %lu contains key %"PRI_bsrch"->%s\n", i, ele->key, ele->val.c);
 	}
 }
 #endif /* BINSEARCH_DEBUG */

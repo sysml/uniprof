@@ -219,7 +219,7 @@ void resolve_and_print_symbol(void *symbol_table, guest_word_t address, FILE *fi
 		if (address == ele->key)
 			fprintf(file, "%#"PRI_guest_word"\n", address);
 		else
-			fprintf(file, "%s+%#"PRIx64"\n", ele->val.c, address - ele->key);
+			fprintf(file, "%s+%#"PRI_bsrch"\n", ele->val.c, address - ele->key);
 	}
 }
 
@@ -355,9 +355,10 @@ void *read_symbol_table(char *symbol_table_file_name)
 	char line[256];
 	char *p, *symbol;
 	size_t len;
-	int count = 0;
+	unsigned long count = 0;
 	FILE *f;
-	int ch, i;
+	int ch;
+	unsigned long i;
 	void *head;
 	element_t element;
 
@@ -385,21 +386,21 @@ void *read_symbol_table(char *symbol_table_file_name)
 		return NULL;
 	for (i=0; i<count; i++) {
 		if (fgets(line, 256, f) == NULL) {
-			fprintf(stderr, "Error reading entry %d from symbol table file\n", i);
+			fprintf(stderr, "Error reading entry %lu from symbol table file\n", i);
 			goto out_err;
 		}
-		element.key = strtoull(line, &p, 16);
+		element.key = strtoul(line, &p, 16);
 		// p should now point to the space between address and type
 		// so jump ahead 3 characters to symbol
 		p += 3;
 		len = strlen(p);
 		if (len == 0) {
-			fprintf(stderr, "Error reading entry %d from symbol table file\n", i);
+			fprintf(stderr, "Error reading entry %lu from symbol table file\n", i);
 			goto out_err;
 		}
 		symbol = malloc(len+1);
 		if (!symbol) {
-			fprintf(stderr, "Error allocating %zu bytes of memory for symbol table entry %d!\n", len, i);
+			fprintf(stderr, "Error allocating %zu bytes of memory for symbol table entry %lu!\n", len, i);
 			goto out_err;
 		}
 		else {
@@ -410,7 +411,7 @@ void *read_symbol_table(char *symbol_table_file_name)
 		binsearch_fill(head, &element);
 	}
 	if (i != count) {
-		fprintf(stderr, "Error reading symbol table from file, expected %d entries, got %d\n", count, i);
+		fprintf(stderr, "Error reading symbol table from file, expected %lu entries, got %lu\n", count, i);
 		goto out_err;
 	}
 	return head;
