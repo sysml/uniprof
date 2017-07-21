@@ -99,15 +99,15 @@ do {								\
 	(b)->tv_nsec = 1000000000 - (a)->tv_nsec;		\
 } while (0)
 
-static unsigned long get_time_nsec(void)
+static time_t get_time_nsec(void)
 {
 	struct timespec ts;
 	clock_gettime(CLOCK_MONOTONIC, &ts);
-	return ts.tv_sec * 1000000000ULL + ts.tv_nsec;
+	return ts.tv_sec * 1000000000LL + ts.tv_nsec;
 }
-static void busywait(unsigned long nsecs)
+static void busywait(time_t nsecs)
 {
-	unsigned long deadline = get_time_nsec() + nsecs;
+	time_t deadline = get_time_nsec() + nsecs;
 	do {
 	} while (get_time_nsec() < deadline);
 }
@@ -118,7 +118,7 @@ static void measure_overheads(struct timespec *gettime_overhead, struct timespec
 	struct timespec before = { .tv_sec = 0, .tv_nsec = 0 };
 	struct timespec after  = { .tv_sec = 0, .tv_nsec = 0 };
 	struct timespec sleep  = { .tv_sec = 0, .tv_nsec = 0 };
-	unsigned long long sleepsecs = 0, sleepnanosecs = 0, timesecs = 0, timenanosecs = 0;
+	time_t sleepsecs = 0, sleepnanosecs = 0, timesecs = 0, timenanosecs = 0;
 
 	for (i=0; i<rounds; i++) {
 		clock_gettime(CLOCK_MONOTONIC, &before);
@@ -515,7 +515,7 @@ int main(int argc, char **argv) {
 				print_usage(argv[0]);
 				return 0;
 			case 'F':
-				freq = strtoul(optarg, NULL, 10);
+				freq = (unsigned int)strtoul(optarg, NULL, 10);
 				break;
 			case 'T':
 				time = strtoul(optarg, NULL, 10);
