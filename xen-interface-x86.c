@@ -61,11 +61,11 @@ int get_word_size(domid_t domid, unsigned int *wordsize) {
 /* libxenforeignmemory doesn't provide an address translation method like libxc does,
  * so it needs a replacement function to walk the page tables.
  */
-unsigned long xen_translate_foreign_address(domid_t domid, unsigned int vcpu, unsigned long long virt)
+unsigned long xen_translate_foreign_address(domid_t domid, unsigned int vcpu, uint64_t virt)
 {
 	vcpu_guest_context_t ctx;
-	unsigned int wordsize;
-	int levels, i, err;
+	unsigned int wordsize, levels, i;
+	int err;
 	uint64_t addr, mask, clamp, offset;
 	xen_pfn_t pfn;
 	void *map;
@@ -108,7 +108,7 @@ unsigned long xen_translate_foreign_address(domid_t domid, unsigned int vcpu, un
 		 * Since PTEs are 8 bytes for both 64-bit and 32-bit (Xen doesn't
 		 * seem to emulate legacy non-PAE setups with 4-byte PTEs),
 		 * multiply the page table entry number by 8. */
-		offset = ((virt & mask) >> (ffsll(mask) - 1)) * 8;
+		offset = ((virt & mask) >> (ffsll((long long)mask) - 1)) * 8;
 		DBG("level %d page walk gives us offset 0x%lx\n", i, offset);
 		/* But before we can read from there, we will need to map in that memory */
 		pfn = addr >> PAGE_SHIFT;
@@ -128,7 +128,7 @@ unsigned long xen_translate_foreign_address(domid_t domid, unsigned int vcpu, un
 	/* We now have the machine addres. But actually, we want an
 	 * MFN, so shift the address accordingly. */
 	addr >>= PAGE_SHIFT;
-	DBG("found section entry for %llx to mfn 0x%lx\n", virt, addr);
+	DBG("found section entry for 0x%"PRIx64" to mfn 0x%lx\n", virt, addr);
 	return addr;
 
 out_unmap:
