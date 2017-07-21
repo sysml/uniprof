@@ -141,7 +141,7 @@ static void measure_overheads(struct timespec *gettime_overhead, struct timespec
 	minsleep->tv_nsec         = (sleepnanosecs + timenanosecs) / rounds;
 }
 
-int domain_shut_down(int domid) {
+int domain_shut_down(domid_t domid) {
 	const unsigned int dying_and_shutdown = XEN_DOMINF_dying | XEN_DOMINF_shutdown;
 	unsigned int domstate;
 
@@ -157,7 +157,7 @@ int domain_shut_down(int domid) {
 	return 0;
 }
 
-void *guest_to_host(int domid, int vcpu, guest_word_t gaddr) {
+void *guest_to_host(domid_t domid, int vcpu, guest_word_t gaddr) {
 	static mapped_page_t *map_head = NULL;
 	mapped_page_t *map_iter;
 	mapped_page_t *new_item;
@@ -223,7 +223,7 @@ void resolve_and_print_symbol(void *symbol_table, guest_word_t address, FILE *fi
 	}
 }
 
-void walk_stack_fp(int domid, int vcpu, unsigned int wordsize, FILE *file, void *symbol_table) {
+void walk_stack_fp(domid_t domid, int vcpu, unsigned int wordsize, FILE *file, void *symbol_table) {
 	int ret;
 	guest_word_t fp, retaddr;
 	void *hfp, *hrp;
@@ -278,7 +278,7 @@ void walk_stack_fp(int domid, int vcpu, unsigned int wordsize, FILE *file, void 
 /**
  * Walk the stack via the frame pointer. Returns 0 on success.
  */
-int do_stack_trace_fp(int domid, unsigned int max_vcpu_id, int wordsize, FILE *file, void *symbol_table) {
+int do_stack_trace_fp(domid_t domid, unsigned int max_vcpu_id, unsigned int wordsize, FILE *file, void *symbol_table) {
 	unsigned int vcpu;
 
 	if (pause_domain(domid) < 0) {
@@ -330,7 +330,7 @@ void walk_stack_libunwind(struct UXEN_info *ui, unw_addr_space_t as, FILE *file,
 /**
  * Walk the stack via eh_frame information parsed by libunwind. Returns 0 on success.
  */
-int do_stack_trace_libunwind(int domid, unsigned int max_vcpu_id, FILE *file,
+int do_stack_trace_libunwind(domid_t domid, unsigned int max_vcpu_id, FILE *file,
 		struct UXEN_info *ui, unw_addr_space_t as, bool resolve_symbols) {
 	unsigned int vcpu;
 
@@ -422,14 +422,14 @@ out_err:
 	return NULL;
 }
 
-void write_file_header(FILE *f, int domid)
+void write_file_header(FILE *f, domid_t domid)
 {
 	char timestring[64];
 	struct timespec ts;
 	clock_gettime(CLOCK_REALTIME_COARSE, &ts);
 	strftime(timestring, 63, "%Y-%m-%d %H:%M:%S %Z (%z)", localtime(&ts.tv_sec));
 	fprintf(f, "#unikernel stack tracer using %s hypercall interface\n", HYPERCALL_NAME);
-	fprintf(f, "#tracing domid %d on %s\n\n", domid, timestring);
+	fprintf(f, "#tracing domid %u on %s\n\n", domid, timestring);
 }
 
 static void print_usage(char *name) {
@@ -466,7 +466,8 @@ static void print_usage(char *name) {
 }
 
 int main(int argc, char **argv) {
-	int domid, ret;
+	int ret;
+	domid_t domid;
 	FILE *outfile;
 	unsigned int max_vcpu_id, wordsize;
 	const int measure_rounds = 100;
@@ -566,7 +567,7 @@ int main(int argc, char **argv) {
 		return -1;
 	}
 
-	domid = strtol(argv[1], NULL, 10);
+	domid = (domid_t)strtoul(argv[1], NULL, 10);
 	if (domid == 0) {
 		fprintf(stderr, "invalid domid (unparseable domid string %s, or cannot trace dom0)\n", argv[1]);
 		return -2;

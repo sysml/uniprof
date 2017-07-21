@@ -75,11 +75,11 @@ int xen_interface_close(void) {
 	return 0;
 }
 
-int get_domain_state(int domid, unsigned int *state) {
+int get_domain_state(domid_t domid, unsigned int *state) {
 	int retval;
 #if defined(HYPERCALL_XENCALL)
 	struct xen_domctl domctl;
-	domctl.domain = (domid_t)domid;
+	domctl.domain = domid;
 	domctl.interface_version = XEN_DOMCTL_INTERFACE_VERSION;
 	domctl.cmd = XEN_DOMCTL_getdomaininfo;
 	retval = xencall1(callh, __HYPERVISOR_domctl, (unsigned long)(&domctl));
@@ -109,10 +109,10 @@ int get_domain_state(int domid, unsigned int *state) {
 #endif
 }
 
-int get_vcpu_context(int domid, int vcpu, vcpu_guest_context_transparent_t *vc) {
+int get_vcpu_context(domid_t domid, int vcpu, vcpu_guest_context_transparent_t *vc) {
 #if defined(HYPERCALL_XENCALL)
 	struct xen_domctl domctl;
-	domctl.domain = (domid_t)domid;
+	domctl.domain = domid;
 	domctl.interface_version = XEN_DOMCTL_INTERFACE_VERSION;
 	domctl.cmd = XEN_DOMCTL_getvcpucontext;
 	domctl.u.vcpucontext.vcpu = (uint16_t)vcpu;
@@ -123,10 +123,10 @@ int get_vcpu_context(int domid, int vcpu, vcpu_guest_context_transparent_t *vc) 
 #endif
 }
 
-int pause_domain(int domid) {
+int pause_domain(domid_t domid) {
 #if defined(HYPERCALL_XENCALL)
 	struct xen_domctl domctl;
-	domctl.domain = (domid_t)domid;
+	domctl.domain = domid;
 	domctl.interface_version = XEN_DOMCTL_INTERFACE_VERSION;
 	domctl.cmd = XEN_DOMCTL_pausedomain;
 	return xencall1(callh, __HYPERVISOR_domctl, (unsigned long)(&domctl));
@@ -135,10 +135,10 @@ int pause_domain(int domid) {
 #endif
 }
 
-int unpause_domain(int domid) {
+int unpause_domain(domid_t domid) {
 #if defined(HYPERCALL_XENCALL)
 	struct xen_domctl domctl;
-	domctl.domain = (domid_t)domid;
+	domctl.domain = domid;
 	domctl.interface_version = XEN_DOMCTL_INTERFACE_VERSION;
 	domctl.cmd = XEN_DOMCTL_unpausedomain;
 	return xencall1(callh, __HYPERVISOR_domctl, (unsigned long)(&domctl));
@@ -147,11 +147,11 @@ int unpause_domain(int domid) {
 #endif
 }
 
-int get_max_vcpu_id(int domid, unsigned int *max_vcpu_id) {
+int get_max_vcpu_id(domid_t domid, unsigned int *max_vcpu_id) {
 	int ret;
 #if defined(HYPERCALL_XENCALL)
 	struct xen_domctl domctl;
-	domctl.domain = (domid_t)domid;
+	domctl.domain = domid;
 	domctl.interface_version = XEN_DOMCTL_INTERFACE_VERSION;
 	domctl.cmd = XEN_DOMCTL_getdomaininfo;
 	ret = xencall1(callh, __HYPERVISOR_domctl, (unsigned long)(&domctl));

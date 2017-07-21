@@ -41,12 +41,12 @@
 
 /* On x86, we might have 32-bit domains running on 64-bit machines,
  * so we ask the hypervisor. On ARM, we simply return arch size. */
-int get_word_size(int domid, unsigned int *wordsize) {
+int get_word_size(domid_t domid, unsigned int *wordsize) {
 	//TODO: support for HVM
 #if defined(HYPERCALL_XENCALL)
 	int ret;
 	struct xen_domctl domctl;
-	domctl.domain = (domid_t)domid;
+	domctl.domain = domid;
 	domctl.interface_version = XEN_DOMCTL_INTERFACE_VERSION;
 	domctl.cmd = XEN_DOMCTL_get_address_size;
 	ret = xencall1(callh, __HYPERVISOR_domctl, (unsigned long)(&domctl));
@@ -61,7 +61,7 @@ int get_word_size(int domid, unsigned int *wordsize) {
 /* libxenforeignmemory doesn't provide an address translation method like libxc does,
  * so it needs a replacement function to walk the page tables.
  */
-unsigned long xen_translate_foreign_address(unsigned int domid, unsigned int vcpu, unsigned long long virt)
+unsigned long xen_translate_foreign_address(domid_t domid, unsigned int vcpu, unsigned long long virt)
 {
 	vcpu_guest_context_t ctx;
 	unsigned int wordsize;
@@ -138,7 +138,7 @@ out_unmap:
 }
 #endif /* HYPERCALL_XENCALL */
 
-void xen_map_domu_page(int domid, int vcpu, uint64_t addr, unsigned long *mfn, void **buf) {
+void xen_map_domu_page(domid_t domid, int vcpu, uint64_t addr, unsigned long *mfn, void **buf) {
 	int err _maybe_unused = 0;
 	DBG("mapping page for virt addr %"PRIx64"\n", addr);
 #if defined(HYPERCALL_XENCALL)
