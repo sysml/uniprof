@@ -629,6 +629,7 @@ libunwind
 EGREP
 GREP
 CPP
+wflags
 SET_MAKE
 ac_ct_CC
 CFLAGS
@@ -3601,8 +3602,116 @@ $as_echo "no" >&6; }
 fi
 
 
-# Checks for libraries.
 
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether C compiler accepts -Wall" >&5
+$as_echo_n "checking whether C compiler accepts -Wall... " >&6; }
+if ${ax_cv_check_cflags___Wall+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+
+  ax_check_save_flags=$CFLAGS
+  CFLAGS="$CFLAGS  -Wall"
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+int
+main ()
+{
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+  ax_cv_check_cflags___Wall=yes
+else
+  ax_cv_check_cflags___Wall=no
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+  CFLAGS=$ax_check_save_flags
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ax_cv_check_cflags___Wall" >&5
+$as_echo "$ax_cv_check_cflags___Wall" >&6; }
+if test "x$ax_cv_check_cflags___Wall" = xyes; then :
+  wflags="$wflags -Wall"
+else
+  :
+fi
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether C compiler accepts -Wextra" >&5
+$as_echo_n "checking whether C compiler accepts -Wextra... " >&6; }
+if ${ax_cv_check_cflags___Wextra+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+
+  ax_check_save_flags=$CFLAGS
+  CFLAGS="$CFLAGS  -Wextra"
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+int
+main ()
+{
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+  ax_cv_check_cflags___Wextra=yes
+else
+  ax_cv_check_cflags___Wextra=no
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+  CFLAGS=$ax_check_save_flags
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ax_cv_check_cflags___Wextra" >&5
+$as_echo "$ax_cv_check_cflags___Wextra" >&6; }
+if test "x$ax_cv_check_cflags___Wextra" = xyes; then :
+  wflags="$wflags -Wextra"
+else
+  :
+fi
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether C compiler accepts -Wconversion" >&5
+$as_echo_n "checking whether C compiler accepts -Wconversion... " >&6; }
+if ${ax_cv_check_cflags___Wconversion+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+
+  ax_check_save_flags=$CFLAGS
+  CFLAGS="$CFLAGS  -Wconversion"
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+int
+main ()
+{
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+  ax_cv_check_cflags___Wconversion=yes
+else
+  ax_cv_check_cflags___Wconversion=no
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+  CFLAGS=$ax_check_save_flags
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ax_cv_check_cflags___Wconversion" >&5
+$as_echo "$ax_cv_check_cflags___Wconversion" >&6; }
+if test "x$ax_cv_check_cflags___Wconversion" = xyes; then :
+  wflags="$wflags -Wconversion"
+else
+  :
+fi
+
+wflags="$wflags"
+
+
+# Checks for libraries.
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for xc_domain_pause in -lxenctrl" >&5
 $as_echo_n "checking for xc_domain_pause in -lxenctrl... " >&6; }
 if ${ac_cv_lib_xenctrl_xc_domain_pause+:} false; then :
