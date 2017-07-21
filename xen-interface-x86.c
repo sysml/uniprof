@@ -129,7 +129,6 @@ unsigned long xen_translate_foreign_address(domid_t domid, unsigned int vcpu, un
 	 * MFN, so shift the address accordingly. */
 	addr >>= PAGE_SHIFT;
 	DBG("found section entry for %llx to mfn 0x%lx\n", virt, addr);
-	xenforeignmemory_unmap(fmemh, map, 1);
 	return addr;
 
 out_unmap:
