@@ -106,7 +106,7 @@ int binsearch_fill(void *head, element_t *ele)
 	return 0;
 }
 
-element_t *__binsearch_find_exact(void *head, binsearch_key_t key, unsigned long first, unsigned long last)
+element_t *__binsearch_find_exact(const void *head, binsearch_key_t key, unsigned long first, unsigned long last)
 {
 	unsigned long median = first + (last-first)/2;
 	element_t *fele = (element_t *)(head + sizeof(control_block_t) + first * sizeof(element_t));
@@ -131,7 +131,7 @@ element_t *__binsearch_find_exact(void *head, binsearch_key_t key, unsigned long
 		return __binsearch_find_exact(head, key, median+1, last);
 }
 
-element_t *__binsearch_find_not_above(void *head, binsearch_key_t key, unsigned long first, unsigned long last)
+element_t *__binsearch_find_not_above(const void *head, binsearch_key_t key, unsigned long first, unsigned long last)
 {
 	unsigned long median = first + (last-first)/2;
 	element_t *fele = (element_t *)(head + sizeof(control_block_t) + first * sizeof(element_t));
@@ -152,24 +152,24 @@ element_t *__binsearch_find_not_above(void *head, binsearch_key_t key, unsigned 
 		return __binsearch_find_not_above(head, key, median, last);
 }
 
-element_t *binsearch_find_exact(void *head, binsearch_key_t key)
+element_t *binsearch_find_exact(const void *head, binsearch_key_t key)
 {
-	control_block_t *cb = head;
+	const control_block_t *cb = head;
 	if (cb->num == 0)
 		return NULL;
 	return __binsearch_find_exact(head, key, 0, cb->num-1);
 }
 
-element_t *binsearch_find_not_above(void *head, binsearch_key_t key)
+element_t *binsearch_find_not_above(const void *head, binsearch_key_t key)
 {
-	control_block_t *cb = head;
+	const control_block_t *cb = head;
 	if (cb->num == 0)
 		return NULL;
 	return __binsearch_find_not_above(head, key, 0, cb->num-1);
 }
 
 #ifdef BINSEARCH_DEBUG
-void binsearch_debug_dump_array(void *head)
+void binsearch_debug_dump_array(const void *head)
 {
 	unsigned long num = ((control_block_t *)head)->num;
 	element_t *ele;

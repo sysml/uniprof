@@ -191,7 +191,7 @@ void xen_map_domu_page(domid_t domid, unsigned int vcpu, uint64_t addr, unsigned
 	DBG("virt addr %"PRIx64" has mfn %lx and was mapped to %p\n", addr, *mfn, *buf);
 }
 
-guest_word_t frame_pointer(vcpu_guest_context_transparent_t *vc) {
+guest_word_t frame_pointer(const vcpu_guest_context_transparent_t *vc) {
 	// this only works for ARM mode so far!
 	// also, it might not work at all on AACPI ABI!
 #if defined(HYPERCALL_XENCALL)
@@ -201,7 +201,7 @@ guest_word_t frame_pointer(vcpu_guest_context_transparent_t *vc) {
 #endif
 }
 
-guest_word_t instruction_pointer(vcpu_guest_context_transparent_t *vc) {
+guest_word_t instruction_pointer(const vcpu_guest_context_transparent_t *vc) {
 	// this only works for ARM mode so far!
 #if defined(HYPERCALL_XENCALL)
 	return vc->user_regs.pc32;

@@ -204,7 +204,7 @@ out_free:
 	return NULL;
 }
 
-void resolve_and_print_symbol(void *symbol_table, guest_word_t address, FILE *file) {
+void resolve_and_print_symbol(const void *symbol_table, guest_word_t address, FILE *file) {
 	element_t *ele;
 
 	if (!symbol_table) {
@@ -223,7 +223,7 @@ void resolve_and_print_symbol(void *symbol_table, guest_word_t address, FILE *fi
 	}
 }
 
-void walk_stack_fp(domid_t domid, unsigned int vcpu, unsigned int wordsize, FILE *file, void *symbol_table) {
+void walk_stack_fp(domid_t domid, unsigned int vcpu, unsigned int wordsize, FILE *file, const void *symbol_table) {
 	int ret;
 	guest_word_t fp, retaddr;
 	void *hfp, *hrp;
@@ -278,7 +278,7 @@ void walk_stack_fp(domid_t domid, unsigned int vcpu, unsigned int wordsize, FILE
 /**
  * Walk the stack via the frame pointer. Returns 0 on success.
  */
-int do_stack_trace_fp(domid_t domid, unsigned int max_vcpu_id, unsigned int wordsize, FILE *file, void *symbol_table) {
+int do_stack_trace_fp(domid_t domid, unsigned int max_vcpu_id, unsigned int wordsize, FILE *file, const void *symbol_table) {
 	unsigned int vcpu;
 
 	if (pause_domain(domid) < 0) {
@@ -350,7 +350,7 @@ int do_stack_trace_libunwind(domid_t domid, unsigned int max_vcpu_id, FILE *file
 }
 #endif
 
-void *read_symbol_table(char *symbol_table_file_name)
+void *read_symbol_table(const char *symbol_table_file_name)
 {
 	char line[256];
 	char *p, *symbol;
@@ -432,7 +432,7 @@ void write_file_header(FILE *f, domid_t domid)
 	fprintf(f, "#tracing domid %u on %s\n\n", domid, timestring);
 }
 
-static void print_usage(char *name) {
+static void print_usage(const char *name) {
 	printf("usage:\n");
 	printf("  %s [options] <outfile> <domid>\n\n", name);
 	printf("options:\n");

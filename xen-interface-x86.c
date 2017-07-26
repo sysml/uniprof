@@ -162,7 +162,7 @@ void xen_map_domu_page(domid_t domid, unsigned int vcpu, uint64_t addr, unsigned
 	DBG("virt addr %"PRIx64" has mfn %lx and was mapped to %p\n", addr, *mfn, *buf);
 }
 
-guest_word_t frame_pointer(vcpu_guest_context_transparent_t *vc) {
+guest_word_t frame_pointer(const vcpu_guest_context_transparent_t *vc) {
 	// only possible word sizes are 4 and 8, everything else leads to an
 	// early exit during initialization, since we can't handle it
 #if defined(__i386__)
@@ -180,7 +180,7 @@ guest_word_t frame_pointer(vcpu_guest_context_transparent_t *vc) {
 #endif /* architecture */
 }
 
-guest_word_t instruction_pointer(vcpu_guest_context_transparent_t *vc) {
+guest_word_t instruction_pointer(const vcpu_guest_context_transparent_t *vc) {
 	//TODO: currently no support for real-mode 32 bit
 #if defined(__i386__)
 #if defined(HYPERCALL_XENCALL)
