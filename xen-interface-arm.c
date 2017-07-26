@@ -56,7 +56,7 @@ unsigned long xen_translate_foreign_address(int domid, int vcpu, unsigned long l
 	int arm_pt_base_length = 18;
 	int arm_pt_index_length = 12;
 	uint32_t addr, offset;
-	unsigned int N; /* N as defined in the the ARM TCBR specification */
+	unsigned int N; /* N as defined in the the ARM TTBCR specification */
 	int err, entry_type;
 	void *map;
 
@@ -112,7 +112,7 @@ unsigned long xen_translate_foreign_address(int domid, int vcpu, unsigned long l
 			addr &= (addr & 0xFFFFFC00);
 			addr |= ((virt & 0xFF000)>>10);
 			if ((addr>>PAGE_SHIFT) != (pt_base_addr>>PAGE_SHIFT)) {
-				/* New address is in a different mage, get that one. */
+				/* New address is in a different page, get that one. */
 				xenforeignmemory_unmap(fmemh, map, 1);
 				map = xenforeignmemory_map(fmemh, domid, PROT_READ, 1, (xen_pfn_t *)&addr, &err);
 				if (err)
@@ -139,7 +139,7 @@ unsigned long xen_translate_foreign_address(int domid, int vcpu, unsigned long l
 			addr &= (addr & 0xFFFFFC00);
 			addr |= ((virt & 0xFF000)>>10);
 			if ((addr>>PAGE_SHIFT) != (pt_base_addr>>PAGE_SHIFT)) {
-				/* New address is in a different mage, get that one. */
+				/* New address is in a different page, get that one. */
 				xenforeignmemory_unmap(fmemh, map, 1);
 				map = xenforeignmemory_map(fmemh, domid, PROT_READ, 1, (xen_pfn_t *)&addr, &err);
 				if (err)

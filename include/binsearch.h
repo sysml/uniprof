@@ -39,7 +39,7 @@
  * binsearch.h
  *
  * Binary search implementation. This expects a static set of items to search
- * through, with a continuous amount of memory allocated first, then filling
+ * through, with a contiguous amount of memory allocated first, then filling
  * it, then searching it. So no online inserts and deletes. But fast lookups,
  * also for queries such as "give me the largest element smaller than x".
  */
@@ -73,7 +73,7 @@ typedef struct {
 	} val;
 } element_t;
 
-/** allocate a continuous memory block, starting at head, of size
+/** allocate a contiguous memory block, starting at head, of size
  *  sizeof(control_block_t) + sizeof(element_t) * num bytes, to
  *  contain num elements, plus a control block at the beginning;
  *  Returns pointer to beginning of array on success, 0 otherwise.

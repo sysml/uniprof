@@ -50,7 +50,7 @@
 #endif
 
 typedef struct mapped_page {
-	guest_word_t base; // page number, i.e. addr>>PAGE_SHIFT
+	guest_word_t base; // page number, i.e., addr>>PAGE_SHIFT
 	unsigned long mfn;
 	void *buf;
 	struct mapped_page *next;
@@ -175,7 +175,7 @@ void *guest_to_host(int domid, int vcpu, guest_word_t gaddr) {
 	}
 
 	// no matching page found, we need to map a new one.
-	// At this pointer, map_iter conveniently points to the last item.
+	// At this point, map_iter conveniently points to the last item.
 	new_item = malloc(sizeof(mapped_page_t));
 	if (new_item == NULL) {
 		fprintf(stderr, "failed to allocate memory for page struct.\n");
