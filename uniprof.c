@@ -183,7 +183,7 @@ void *guest_to_host(int domid, int vcpu, guest_word_t gaddr) {
 	}
 	new_item->base = base;
 	xen_map_domu_page(domid, vcpu, base, &new_item->mfn, &new_item->buf);
-	VERBOSE("mapping new page %#"PRIx64"->%p\n", new_item->base, new_item->buf);
+	VERBOSE("mapping new page %#"PRI_guest_word"->%p\n", new_item->base, new_item->buf);
 	if (new_item->buf == NULL) {
 		fprintf(stderr, "failed to allocate memory mapping page.\n");
 		goto out_free;
@@ -208,16 +208,16 @@ void resolve_and_print_symbol(void *symbol_table, guest_word_t address, FILE *fi
 	element_t *ele;
 
 	if (!symbol_table) {
-		fprintf(file, "%#"PRIx64"\n", address);
+		fprintf(file, "%#"PRI_guest_word"\n", address);
 		return;
 	}
 
 	ele = binsearch_find_not_above(symbol_table, address);
 	if (!ele)
-		fprintf(file, "%#"PRIx64"\n", address);
+		fprintf(file, "%#"PRI_guest_word"\n", address);
 	else {
 		if (address == ele->key)
-			fprintf(file, "%#"PRIx64"\n", address);
+			fprintf(file, "%#"PRI_guest_word"\n", address);
 		else
 			fprintf(file, "%s+%#"PRIx64"\n", ele->val.c, address - ele->key);
 	}
@@ -238,12 +238,12 @@ void walk_stack_fp(int domid, int vcpu, int wordsize, FILE *file, void *symbol_t
 	// our first "return" address is the instruction pointer
 	retaddr = instruction_pointer(&vc);
 	fp = frame_pointer(&vc);
-	DBG("vcpu %d, initial (register-based) fp = %#"PRIx64", retaddr = %#"PRIx64"\n", vcpu, fp, retaddr);
+	DBG("vcpu %d, initial (register-based) fp = %#"PRI_guest_word", retaddr = %#"PRI_guest_word"\n", vcpu, fp, retaddr);
 	while (fp != 0) {
 		if (symbol_table)
 			resolve_and_print_symbol(symbol_table, retaddr, file);
 		else
-			fprintf(file, "%#"PRIx64"\n", retaddr);
+			fprintf(file, "%#"PRI_guest_word"\n", retaddr);
 		/* walk the stack: on x86, the fp points to the address of the previous
 		 * frame pointers, so new_fp = *old_fp. On ARM, the fp points to the
 		 * first address of the next frame, with the frame pointer the first
@@ -269,8 +269,8 @@ void walk_stack_fp(int domid, int vcpu, int wordsize, FILE *file, void *symbol_t
 			hrp = hfp+wordsize;
 		memcpy(&fp, hfp, wordsize);
 		memcpy(&retaddr, hrp, wordsize);
-		DBG("vcpu %d, fp = %#"PRIx64"->%p->%#"PRIx64", return addr = %#"PRIx64"->%p->%#"PRIx64"\n",
-				vcpu, fp, hfp, *((uint64_t*)hfp), fp+wordsize, hrp, retaddr);
+		DBG("vcpu %d, fp = %#"PRI_guest_word"->%p->%#"PRI_guest_word", return addr = %#"PRI_guest_word"->%p->%#"PRI_guest_word"\n",
+				vcpu, fp, hfp, *((guest_word_t*)hfp), fp+wordsize, hrp, retaddr);
 	}
 	fprintf(file, "1\n\n");
 }

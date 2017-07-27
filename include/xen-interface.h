@@ -75,8 +75,18 @@ extern xc_interface *xc_handle;
 #define PAGE_SIZE  XC_PAGE_SIZE
 #define PAGE_MASK  XC_PAGE_MASK
 
+#if defined(__x86_64__) || defined(__aarch64__)
+typedef uint64_t guest_word_t;
+#define PRI_guest_word PRIx64
+#elif defined(__x86__) || defined(__arm__)
+typedef uint32_t guest_word_t;
+#define PRI_guest_word PRIx32
+#else
+#warning Unsupported architecture!
 // big enough for 32 bit and 64 bit
 typedef uint64_t guest_word_t;
+#define PRI_guest_word PRIx64
+#endif
 
 int xen_interface_open(void);
 int xen_interface_close(void);
