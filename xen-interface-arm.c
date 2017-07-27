@@ -40,7 +40,7 @@
 
 /* On x86, we might have 32-bit domains running on 64-bit machines,
  * so we ask the hypervisor. On ARM, we simply return arch size. */
-int get_word_size(int __maybe_unused domid) {
+int get_word_size(int _maybe_unused domid) {
 #if defined(__arm__)
 	return 4;
 #elif defined(__aarch64__)
@@ -167,7 +167,7 @@ out_unmap:
 #endif /* HYPERCALL_XENCALL */
 
 void xen_map_domu_page(int domid, int vcpu, uint64_t addr, unsigned long *mfn, void **buf) {
-	int err __maybe_unused = 0;
+	int err _maybe_unused = 0;
 	DBG("mapping page for virt addr %"PRIx64"\n", addr);
 #if defined(HYPERCALL_XENCALL)
 	*mfn = xen_translate_foreign_address(domid, vcpu, addr);

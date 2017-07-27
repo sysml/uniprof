@@ -33,8 +33,8 @@
  * THIS HEADER MAY NOT BE EXTRACTED OR MODIFIED IN ANY WAY.
  */
 
-#ifndef __XEN_INTERFACE_H
-#define __XEN_INTERFACE_H
+#ifndef XEN_INTERFACE_H
+#define XEN_INTERFACE_H
 
 #include <config.h>
 
@@ -46,7 +46,7 @@
 
 #undef DBG
 #ifdef DEBUG
-#define DBG(string, args...) printf("[DBG %s:%s] "string, __FILE__, __func__, ##args)
+#define DBG(string, args...) printf("[DBG %s:%s():%d] "string, __FILE__, __func__, __LINE__, ##args)
 #else
 #define DBG(args...)
 #endif /* DEBUG */
@@ -67,8 +67,8 @@ typedef vcpu_guest_context_any_t vcpu_guest_context_transparent_t;
 extern xc_interface *xc_handle;
 #endif
 
-#ifndef __maybe_unused
-#define __maybe_unused __attribute__((unused))
+#ifndef _maybe_unused
+#define _maybe_unused __attribute__((unused))
 #endif
 
 #define PAGE_SHIFT XC_PAGE_SHIFT
@@ -90,4 +90,4 @@ int pause_domain(int domid);
 int unpause_domain(int domid);
 int get_max_vcpu_id(int domid);
 
-#endif /* __XEN_INTERFACE_H */
+#endif /* XEN_INTERFACE_H */

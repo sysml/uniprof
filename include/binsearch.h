@@ -33,8 +33,8 @@
  * THIS HEADER MAY NOT BE EXTRACTED OR MODIFIED IN ANY WAY.
  */
 
-#ifndef _BINSEARCH_H
-#define _BINSEARCH_H
+#ifndef BINSEARCH_H
+#define BINSEARCH_H
 /**
  * binsearch.h
  *
@@ -184,4 +184,4 @@ void binsearch_debug_dump_array(void *head)
 #endif /* BINSEARCH_DEBUG */
 
 
-#endif /* _BINSEARCH_H */
+#endif /* BINSEARCH_H */
