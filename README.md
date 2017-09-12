@@ -8,8 +8,8 @@ These traces can then be aggregated to produce profiling information and
 visualization, for example, via [flame
 graphs](https://github.com/brendangregg/FlameGraph).
 
-Building the stack tracer
--------------------------
+Building and using the stack tracer
+----------------------------------
 
 ### Quick start
 If you already have Xen and its tools installed (and why wouldn't you if you
@@ -124,3 +124,14 @@ will probably have more success and more meaningful results if you set up
 the outside in case tracing from the inside is impossible (e.g., tracking down
 insidious kernel bugs) or when using operating systems with less-developed
 profiling tools.
+
+Further documentation
+---------------------
+
+I presented uniprof at the Xen Developer and Design Summit 2017. Here's a
+[video of the talk](https://www.youtube.com/watch?v=aUzrm8hBMzc), and
+[the slide set](http://flosch.eu/papers/2017-xensummit-uniprof-slides.pdf).
+
+You can also get a more general overview and problem statement from the
+[two-page summary of uniprof](http://flosch.eu/papers/2017-sigcomm-uniprof.pdf)
+written as a poster abstract for SIGCOMM 2017.
