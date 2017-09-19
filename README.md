@@ -91,7 +91,7 @@ them offline after finishing the profiling run. To do so, use the
 ### Profiling a domain using libunwind-xen
 If you cannot or do not want to use the frame pointer register to unwind the
 stack, you can use a specially patched version of libunwind (available at
-https://github.com/cnplab/libunwind) to do the unwinding. This requires
+https://github.com/sysml/libunwind) to do the unwinding. This requires
 you to have the ELF binary available, and that binary to contain an `.eh_frame`
 section (which generally is there by default). uniprof then compares the
 current IP register to information in the `.eh_frame` to assess the size of the
